@@ -372,7 +372,7 @@ export function ChatContentPanel({
           <MealPlanCalendar
             mealPlan={mealPlanData}
             editable={true}
-            activeTrainerSlug={activeTrainerSlug}
+            activeTrainerSlug={activeTrainerSlug === 'edu' || activeTrainerSlug === 'carolina' ? activeTrainerSlug : null}
             onDayClick={(date) => {
               // When a day is clicked, ensure it's selected
               console.log('Day clicked in meal planner:', date)

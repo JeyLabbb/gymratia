@@ -32,7 +32,7 @@ type MealPlanCalendarProps = {
   onEdit?: () => void
   editable?: boolean
   onMealPlanUpdate?: (updatedPlan: MealPlanDay[]) => void
-  activeTrainerSlug?: 'edu' | 'carolina' | null
+  activeTrainerSlug?: 'edu' | 'carolina' | 'jey' | string | null
 }
 
 export function MealPlanCalendar({ mealPlan, onDayClick, onEdit, editable = false, onMealPlanUpdate, activeTrainerSlug }: MealPlanCalendarProps) {

@@ -43,7 +43,7 @@ type ExerciseLog = {
 type WorkoutExcelTableProps = {
   workout: Workout
   onUpdate: () => void
-  activeTrainerSlug?: 'edu' | 'carolina' | null
+  activeTrainerSlug?: 'edu' | 'carolina' | 'jey' | string | null
   weekNumber?: number
   onWeekChange?: (weekNumber: number) => void
 }

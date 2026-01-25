@@ -72,7 +72,7 @@ type DietViewProps = {
   onEdit?: () => void
   editable?: boolean
   hideTitle?: boolean // Hide title if it's shown in parent component
-  activeTrainerSlug?: 'edu' | 'carolina' | null
+  activeTrainerSlug?: 'edu' | 'carolina' | 'jey' | string | null
 }
 
 // Helper function to normalize category names
