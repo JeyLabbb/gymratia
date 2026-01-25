@@ -7,6 +7,22 @@ import { cn } from '@/lib/utils'
 import { downloadMealPlanPDF } from '@/lib/pdf-utils'
 import { AddMealModal } from './AddMealModal'
 
+type Meal = {
+  name: string
+  time: string
+  foods: Array<{
+    name: string
+    quantity: number
+    unit: string
+    calories?: number
+    protein?: number
+    carbs?: number
+    fats?: number
+  }>
+  recipe?: string
+  mealType?: string
+}
+
 type MealPlanDay = {
   date: string // YYYY-MM-DD
   meals: Array<{
@@ -202,12 +218,6 @@ export function MealPlanCalendar({ mealPlan, onDayClick, onEdit, editable = fals
           >
             <Download className="w-4 h-4" />
             Descargar Calendario
-          </button>
-          <button
-            onClick={prevWeek}
-            className="p-2 rounded-lg hover:bg-[#1A1D24] transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5 text-[#F8FAFC]" />
           </button>
           <button
             onClick={nextWeek}

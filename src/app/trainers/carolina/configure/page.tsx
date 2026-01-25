@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/_components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { personas } from '@/lib/personas'
-import { TrainerSetupChat } from '@/app/trainers/edu/configure/TrainerSetupChat'
+import { TrainerSetupChat } from '../../edu/configure/TrainerSetupChat'
 
 export default function CarolinaConfigurePage() {
   const router = useRouter()
