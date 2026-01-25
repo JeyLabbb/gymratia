@@ -49,7 +49,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { notificationId } = body
+    const { notificationId, trainer_slug, message, type, metadata } = body
 
     const authHeader = req.headers.get('authorization')
     if (!authHeader) {
@@ -63,17 +63,47 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { error } = await supabaseAdmin
-      .from('trainer_notifications')
-      .update({ read: true })
-      .eq('id', notificationId)
-      .eq('user_id', user.id)
+    // If notificationId is provided, mark as read
+    if (notificationId) {
+      const { error } = await supabaseAdmin
+        .from('trainer_notifications')
+        .update({ read: true })
+        .eq('id', notificationId)
+        .eq('user_id', user.id)
 
-    if (error) {
-      return NextResponse.json({ error: 'Failed to mark notification as read' }, { status: 500 })
+      if (error) {
+        return NextResponse.json({ error: 'Failed to mark notification as read' }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true })
     }
 
-    return NextResponse.json({ success: true })
+    // Otherwise, create new notification
+    if (!trainer_slug || !message) {
+      return NextResponse.json({ error: 'trainer_slug and message are required' }, { status: 400 })
+    }
+
+    const notification: any = {
+      user_id: user.id,
+      trainer_slug,
+      message,
+      read: false,
+    }
+
+    if (type) notification.type = type
+    if (metadata) notification.metadata = metadata
+
+    const { data: notificationRecord, error } = await supabaseAdmin
+      .from('trainer_notifications')
+      .insert(notification)
+      .select()
+      .single()
+
+    if (error) {
+      return NextResponse.json({ error: `Failed to create notification: ${error.message}` }, { status: 500 })
+    }
+
+    return NextResponse.json({ notification: notificationRecord })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
   }

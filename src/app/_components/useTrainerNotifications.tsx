@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import { useAuth } from './AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { personas } from '@/lib/personas'
@@ -15,9 +16,34 @@ type Notification = {
 
 export function useTrainerNotifications() {
   const { user } = useAuth()
+  const pathname = usePathname()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const lastCheckedRef = useRef<Record<string, string>>({})
+  const activeTrainerSlugRef = useRef<'edu' | 'carolina' | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
+
+  // Detect if user is currently viewing a chat
+  const getActiveTrainerSlug = (): 'edu' | 'carolina' | null => {
+    if (pathname?.startsWith('/dashboard/chat/edu')) {
+      return 'edu'
+    }
+    if (pathname?.startsWith('/dashboard/chat/carolina')) {
+      return 'carolina'
+    }
+    return null
+  }
+
+  const activeTrainerSlug = getActiveTrainerSlug()
+  activeTrainerSlugRef.current = activeTrainerSlug
+
+  // Remove notifications for the active trainer when user enters their chat
+  useEffect(() => {
+    if (activeTrainerSlug) {
+      setNotifications((prev) => 
+        prev.filter((n) => n.trainerSlug !== activeTrainerSlug)
+      )
+    }
+  }, [activeTrainerSlug])
 
   useEffect(() => {
     if (!user) {
@@ -43,7 +69,7 @@ export function useTrainerNotifications() {
       clearTimeout(initTimeout)
       clearInterval(interval)
     }
-  }, [user, isInitialized])
+  }, [user, isInitialized, pathname, activeTrainerSlug])
 
   const checkForNewMessages = async (isInitial = false) => {
     if (!user) return
@@ -104,22 +130,27 @@ export function useTrainerNotifications() {
             const messageAge = now - messageTime
 
             if (messageAge < 60000 && !isInitial) {
-              // Show popup notification
-              setNotifications((prev) => {
-                // Check if notification already exists for this chat
-                const exists = prev.some((n) => n.chatId === chat.id)
-                if (exists) return prev
+              // Don't show notification if user is currently viewing this trainer's chat
+              const isViewingThisTrainer = activeTrainerSlugRef.current === chat.trainer_slug
+              
+              if (!isViewingThisTrainer) {
+                // Show popup notification
+                setNotifications((prev) => {
+                  // Check if notification already exists for this chat
+                  const exists = prev.some((n) => n.chatId === chat.id)
+                  if (exists) return prev
 
-                return [
-                  ...prev,
-                  {
-                    id: `${chat.id}-${lastMessage.id}`,
-                    trainerSlug: chat.trainer_slug as 'edu' | 'carolina',
-                    message: lastMessage.content,
-                    chatId: chat.id,
-                  },
-                ]
-              })
+                  return [
+                    ...prev,
+                    {
+                      id: `${chat.id}-${lastMessage.id}`,
+                      trainerSlug: chat.trainer_slug as 'edu' | 'carolina',
+                      message: lastMessage.content,
+                      chatId: chat.id,
+                    },
+                  ]
+                })
+              }
 
               // Update last checked time
               lastCheckedRef.current[chat.id] = lastMessage.created_at

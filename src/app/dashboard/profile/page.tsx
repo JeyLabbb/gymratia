@@ -19,7 +19,14 @@ import {
 import { cn } from '@/lib/utils'
 import { AddProgressModal } from './AddProgressModal'
 import { AddPhotoModal } from './AddPhotoModal'
+import { EditPhotoModal } from './EditPhotoModal'
+import { PhotoCarousel } from './PhotoCarousel'
 import { useToast, ToastContainer } from '@/app/_components/Toast'
+import { LoadingScreen } from '@/app/_components/LoadingScreen'
+import { WeightProgressChart } from '@/app/_components/WeightProgressChart'
+import PostCard from '@/app/_components/PostCard'
+import PostPreview from '@/app/_components/PostPreview'
+import { CreatePostModal } from '@/app/_components/CreatePostModal'
 
 type UserProfile = {
   id?: string
@@ -54,6 +61,11 @@ export default function ProfilePage() {
   const [progressPhotos, setProgressPhotos] = useState<any[]>([])
   const [showPhotoUpload, setShowPhotoUpload] = useState(false)
   const [showProgressModal, setShowProgressModal] = useState(false)
+  const [editingPhoto, setEditingPhoto] = useState<any | null>(null)
+  const [editingProgress, setEditingProgress] = useState<ProgressEntry | null>(null)
+  const [posts, setPosts] = useState<any[]>([])
+  const [loadingPosts, setLoadingPosts] = useState(false)
+  const [showCreatePostModal, setShowCreatePostModal] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -73,10 +85,45 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user) {
+      // Cargar datos guardados de localStorage si existen
+      const savedFormData = localStorage.getItem('profile-edit-form')
+      if (savedFormData) {
+        try {
+          const parsed = JSON.parse(savedFormData)
+          setFormData(parsed)
+        } catch (e) {
+          console.error('Error cargando datos guardados:', e)
+        }
+      }
+      
       loadProfile()
       loadProgress()
+      loadPosts()
     }
   }, [user])
+  
+  // Guardar formulario en localStorage cuando cambia
+  useEffect(() => {
+    if (user && formData && Object.keys(formData).length > 0) {
+      localStorage.setItem('profile-edit-form', JSON.stringify(formData))
+    }
+  }, [formData, user])
+
+  const loadPosts = async () => {
+    if (!user) return
+    setLoadingPosts(true)
+    try {
+      const response = await fetch(`/api/social/posts?feed=user&userId=${user.id}&limit=50`)
+      const data = await response.json()
+      if (data.posts) {
+        setPosts(data.posts)
+      }
+    } catch (error) {
+      console.error('Error loading posts:', error)
+    } finally {
+      setLoadingPosts(false)
+    }
+  }
 
   const loadProfile = async () => {
     if (!user) return
@@ -179,6 +226,9 @@ export default function ProfilePage() {
         setProfile(data.profile)
         setEditing(false)
         
+        // Limpiar datos guardados después de guardar exitosamente
+        localStorage.removeItem('profile-edit-form')
+        
         // Show success message with notification info
         if (data.message) {
           toast.success(data.message, 6000)
@@ -260,8 +310,29 @@ export default function ProfilePage() {
 
       const avatarsBucket = buckets?.find(b => b.id === 'avatars')
       if (!avatarsBucket) {
-        toast.error('Error: El bucket "avatars" no existe. Por favor, ejecuta el script create-storage-buckets.sql en Supabase.')
-        return
+        // Try to create bucket automatically
+        try {
+          const setupResponse = await fetch('/api/storage/setup-bucket', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ bucketId: 'avatars' }),
+          })
+
+          const setupData = await setupResponse.json()
+
+          if (!setupResponse.ok || setupData.manualSetupRequired) {
+            toast.error('Error: El bucket "avatars" no existe. Por favor, ejecuta el script create-storage-buckets.sql en Supabase SQL Editor.')
+            return
+          }
+          // Bucket created successfully, continue with upload
+        } catch (setupError) {
+          console.error('Error setting up bucket:', setupError)
+          toast.error('Error: El bucket "avatars" no existe. Por favor, ejecuta el script create-storage-buckets.sql en Supabase.')
+          return
+        }
       }
 
       // Delete old avatar if exists
@@ -313,11 +384,7 @@ export default function ProfilePage() {
   }
 
   if (authLoading || loading) {
-    return (
-      <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
-        <div className="text-[#F8FAFC]">Cargando...</div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (!user) {
@@ -328,42 +395,42 @@ export default function ProfilePage() {
 
   return (
     <DashboardLayout activeSection="profile">
-      <div className="flex-1 overflow-y-auto px-6 py-8">
-        <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-8">
+        <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="font-heading text-3xl font-bold text-[#F8FAFC]">Mi Perfil</h2>
+          <div className="flex items-center justify-between mb-4 sm:mb-8">
+            <h2 className="font-heading text-xl sm:text-3xl font-bold text-[#F8FAFC]">Mi Perfil</h2>
             {!editing && (
               <button
                 onClick={() => setEditing(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-[10px] sm:rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-xs sm:text-sm"
               >
-                <Edit2 className="w-4 h-4" />
-                Editar
+                <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Editar</span>
               </button>
             )}
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Left Column - Profile Info */}
-            <div className="lg:col-span-1 space-y-6">
+            <div className="lg:col-span-1 space-y-4 sm:space-y-6">
               {/* Avatar Card */}
-              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
+              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-4 sm:p-6">
                 <div className="flex flex-col items-center">
-                  <div className="relative mb-4">
+                  <div className="relative mb-3 sm:mb-4">
                     {profile?.avatar_url ? (
                       <img
                         src={profile.avatar_url}
                         alt={displayName}
-                        className="w-32 h-32 rounded-full object-cover border-4 border-[#FF2D2D]"
+                        className="w-20 h-20 sm:w-32 sm:h-32 rounded-full object-cover border-2 sm:border-4 border-[#FF2D2D]"
                       />
                     ) : (
-                      <div className="w-32 h-32 rounded-full bg-[#FF2D2D] flex items-center justify-center text-white font-heading font-bold text-4xl border-4 border-[#FF2D2D]">
+                      <div className="w-20 h-20 sm:w-32 sm:h-32 rounded-full bg-[#FF2D2D] flex items-center justify-center text-white font-heading font-bold text-2xl sm:text-4xl border-2 sm:border-4 border-[#FF2D2D]">
                         {displayName[0]?.toUpperCase()}
                       </div>
                     )}
-                    <label className="absolute bottom-0 right-0 p-2 bg-[#FF2D2D] rounded-full cursor-pointer hover:bg-[#FF3D3D] transition-colors">
-                      <Camera className="w-4 h-4 text-white" />
+                    <label className="absolute bottom-0 right-0 p-1.5 sm:p-2 bg-[#FF2D2D] rounded-full cursor-pointer hover:bg-[#FF3D3D] transition-colors">
+                      <Camera className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                       <input
                         type="file"
                         accept="image/*"
@@ -372,10 +439,10 @@ export default function ProfilePage() {
                       />
                     </label>
                   </div>
-                  <h3 className="font-heading text-xl font-bold text-[#F8FAFC] mb-1">
+                  <h3 className="font-heading text-base sm:text-xl font-bold text-[#F8FAFC] mb-1">
                     {displayName}
                   </h3>
-                  <p className="text-sm text-[#A7AFBE]">{user.email}</p>
+                  <p className="text-xs sm:text-sm text-[#A7AFBE] truncate">{user.email}</p>
                 </div>
               </div>
 
@@ -405,6 +472,49 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
+
+              {/* Mi Feed - Moved to left column */}
+              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-heading text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
+                    <ImageIcon className="w-5 h-5 text-[#FF2D2D]" />
+                    Mi Feed
+                  </h4>
+                  <button
+                    onClick={() => setShowCreatePostModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Publicar
+                  </button>
+                </div>
+                {loadingPosts ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-8 h-8 border-4 border-[#FF2D2D] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : posts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-[#A7AFBE] mb-4">No has publicado nada aún</p>
+                    <button
+                      onClick={() => setShowCreatePostModal(true)}
+                      className="flex items-center gap-2 px-6 py-3 bg-[#FF2D2D] text-white rounded-lg font-medium hover:bg-[#FF3D3D] transition-colors mx-auto"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Crear primera publicación
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1">
+                    {posts.map((post) => (
+                      <PostPreview
+                        key={post.id}
+                        post={post}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
             </div>
 
             {/* Right Column - Main Content */}
@@ -538,65 +648,6 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Progress Tracking */}
-              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-heading text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-[#FF2D2D]" />
-                    Seguimiento de Progreso
-                  </h4>
-                  <button
-                    onClick={() => setShowProgressModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Añadir registro
-                  </button>
-                </div>
-                {progressEntries.length > 0 ? (
-                  <div className="space-y-3">
-                    {progressEntries.slice(0, 5).map((entry) => (
-                      <div
-                        key={entry.id}
-                        className="flex items-center justify-between p-4 bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] rounded-[12px]"
-                      >
-                        <div className="flex items-center gap-4">
-                          <Calendar className="w-5 h-5 text-[#FF2D2D]" />
-                          <div>
-                            <p className="text-sm text-[#F8FAFC] font-medium">
-                              {new Date(entry.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
-                            </p>
-                            {entry.notes && (
-                              <p className="text-xs text-[#A7AFBE] mt-1">{entry.notes}</p>
-                            )}
-                          </div>
-                        </div>
-                        {entry.weight_kg && (
-                          <div className="text-right">
-                            <p className="text-lg font-heading font-bold text-[#FF2D2D]">
-                              {entry.weight_kg} kg
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {progressEntries.length > 5 && (
-                      <p className="text-sm text-[#7B8291] text-center">
-                        Y {progressEntries.length - 5} registros más...
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="h-64 flex items-center justify-center border border-[rgba(255,255,255,0.08)] rounded-[12px] bg-[#1A1D24]">
-                    <div className="text-center">
-                      <TrendingUp className="w-12 h-12 text-[#A7AFBE] mx-auto mb-2" />
-                      <p className="text-[#A7AFBE]">No hay registros aún</p>
-                      <p className="text-sm text-[#7B8291] mt-1">Añade tu primer registro de progreso</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               {/* Progress Photos */}
               <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -613,28 +664,7 @@ export default function ProfilePage() {
                   </button>
                 </div>
                 {progressPhotos.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-4">
-                    {progressPhotos.map((photo) => (
-                      <div
-                        key={photo.id}
-                        className="relative aspect-square rounded-[12px] overflow-hidden bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] group"
-                      >
-                        <img
-                          src={photo.photo_url}
-                          alt={`Progreso ${new Date(photo.date).toLocaleDateString('es-ES')}`}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <div className="text-center text-white text-xs">
-                            <p>{new Date(photo.date).toLocaleDateString('es-ES')}</p>
-                            {photo.photo_type && (
-                              <p className="text-[#FF2D2D] capitalize mt-1">{photo.photo_type}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <PhotoCarousel photos={progressPhotos} onPhotoClick={(photo) => setEditingPhoto(photo)} />
                 ) : (
                   <div className="grid grid-cols-3 gap-4">
                     {[1, 2, 3].map((i) => (
@@ -652,32 +682,156 @@ export default function ProfilePage() {
                     ? 'Sube fotos de tu progreso para ver tu transformación'
                     : `${progressPhotos.length} foto${progressPhotos.length !== 1 ? 's' : ''} de progreso`}
                 </p>
+                {progressPhotos.length > 0 && (
+                  <p className="text-xs text-[#7B8291] mt-2 text-center">
+                    Haz clic en una foto para editarla o eliminarla
+                  </p>
+                )}
               </div>
 
-              {/* Posts Section */}
+              {/* Progress Tracking */}
               <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
-                <h4 className="font-heading text-lg font-bold text-[#F8FAFC] mb-4">Publicaciones</h4>
-                <div className="text-center py-12">
-                  <p className="text-[#A7AFBE] mb-2">Próximamente</p>
-                  <p className="text-sm text-[#7B8291]">
-                    Comparte tu progreso, logros y experiencias con la comunidad
-                  </p>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-heading text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-[#FF2D2D]" />
+                    Seguimiento de Progreso
+                  </h4>
+                  <button
+                    onClick={() => setShowProgressModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Añadir registro
+                  </button>
                 </div>
+                {progressEntries.length > 0 ? (
+                  <div className="space-y-4">
+                    {/* Weight Progress Chart */}
+                    <div className="bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] rounded-[12px] p-4">
+                      <h5 className="text-sm font-semibold text-[#F8FAFC] mb-4">Evolución del Peso</h5>
+                      <WeightProgressChart entries={progressEntries.filter(e => e.weight_kg)} />
+                    </div>
+                    
+                    {/* Recent Entries */}
+                    <div className="space-y-3">
+                      <h5 className="text-sm font-semibold text-[#F8FAFC]">Registros Recientes</h5>
+                      {progressEntries.slice(0, 5).map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="flex items-center justify-between p-4 bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] rounded-[12px] group hover:border-[rgba(255,255,255,0.12)] transition-colors"
+                        >
+                          <div className="flex items-center gap-4 flex-1">
+                            <Calendar className="w-5 h-5 text-[#FF2D2D]" />
+                            <div className="flex-1">
+                              <p className="text-sm text-[#F8FAFC] font-medium">
+                                {new Date(entry.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </p>
+                              {entry.notes && (
+                                <p className="text-xs text-[#A7AFBE] mt-1">{entry.notes}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {entry.weight_kg && (
+                              <div className="text-right">
+                                <p className="text-lg font-heading font-bold text-[#FF2D2D]">
+                                  {entry.weight_kg} kg
+                                </p>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => {
+                                  setEditingProgress(entry)
+                                  setShowProgressModal(true)
+                                }}
+                                className="p-2 hover:bg-[#14161B] rounded-lg transition-colors"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-4 h-4 text-[#A7AFBE]" />
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (confirm('¿Estás seguro de que quieres eliminar este registro?')) {
+                                    try {
+                                      const { data: { session } } = await supabase.auth.getSession()
+                                      if (!session) return
+
+                                      const response = await fetch(`/api/progress?id=${entry.id}`, {
+                                        method: 'DELETE',
+                                        headers: {
+                                          Authorization: `Bearer ${session.access_token}`,
+                                        },
+                                      })
+
+                                      if (response.ok) {
+                                        toast.success('Registro eliminado correctamente')
+                                        loadProgress()
+                                      } else {
+                                        const error = await response.json()
+                                        toast.error(error.error || 'Error al eliminar el registro')
+                                      }
+                                    } catch (error: any) {
+                                      console.error('Error deleting progress:', error)
+                                      toast.error('Error al eliminar el registro')
+                                    }
+                                  }
+                                }}
+                                className="p-2 hover:bg-[#14161B] rounded-lg transition-colors"
+                                title="Eliminar"
+                              >
+                                <X className="w-4 h-4 text-[#EF4444]" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {progressEntries.length > 5 && (
+                        <p className="text-sm text-[#7B8291] text-center">
+                          Y {progressEntries.length - 5} registros más...
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center border border-[rgba(255,255,255,0.08)] rounded-[12px] bg-[#1A1D24]">
+                    <div className="text-center">
+                      <TrendingUp className="w-12 h-12 text-[#A7AFBE] mx-auto mb-2" />
+                      <p className="text-[#A7AFBE]">No hay registros aún</p>
+                      <p className="text-sm text-[#7B8291] mt-1">Añade tu primer registro de progreso</p>
+                    </div>
+                  </div>
+                )}
               </div>
+
             </div>
           </div>
         </div>
       </div>
 
       {/* Modals */}
+      <CreatePostModal
+        isOpen={showCreatePostModal}
+        onClose={() => setShowCreatePostModal(false)}
+        onSuccess={() => {
+          loadPosts()
+          setShowCreatePostModal(false)
+        }}
+      />
       <AddProgressModal
         isOpen={showProgressModal}
-        onClose={() => setShowProgressModal(false)}
+        onClose={() => {
+          setShowProgressModal(false)
+          setEditingProgress(null)
+        }}
         onSuccess={() => {
           loadProgress()
           loadProfile() // Also reload profile to update weight if it was today's date
           setShowProgressModal(false)
+          setEditingProgress(null)
+          toast.success(editingProgress ? 'Registro actualizado correctamente' : 'Registro añadido correctamente')
         }}
+        existingEntry={editingProgress}
       />
       <AddPhotoModal
         isOpen={showPhotoUpload}
@@ -686,6 +840,22 @@ export default function ProfilePage() {
           loadProgress()
           setShowPhotoUpload(false)
         }}
+        userId={user?.id || ''}
+      />
+      <EditPhotoModal
+        isOpen={editingPhoto !== null}
+        onClose={() => setEditingPhoto(null)}
+        onSuccess={() => {
+          loadProgress()
+          setEditingPhoto(null)
+          toast.success('Foto actualizada correctamente')
+        }}
+        onDelete={() => {
+          loadProgress()
+          setEditingPhoto(null)
+          toast.success('Foto eliminada correctamente')
+        }}
+        photo={editingPhoto}
         userId={user?.id || ''}
       />
       <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} />

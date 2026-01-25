@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { personas } from '@/lib/personas'
 import { 
@@ -12,7 +13,9 @@ import {
   MessageCircle, 
   Dumbbell,
   ArrowRight,
-  Star
+  Star,
+  FileText,
+  TrendingUp
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SafeImage from './_components/SafeImage'
@@ -22,6 +25,9 @@ import { PersonalizedHero } from './_components/PersonalizedHero'
 import { PersonalizedNavbar } from './_components/PersonalizedNavbar'
 import { EpicHomeAuthenticated } from './_components/EpicHomeAuthenticated'
 import { useAuth } from './_components/AuthProvider'
+import { LoadingScreen } from './_components/LoadingScreen'
+import { ModeSelectionScreen } from './_components/ModeSelectionScreen'
+import { TrainersPreviewClient } from './_components/TrainersPreviewClient'
 
 // Utility components
 function Container({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -103,7 +109,7 @@ function Hero() {
   return (
     <section className="relative min-h-[100vh] md:min-h-[95vh] flex items-center overflow-hidden bg-black">
       <div className="absolute inset-0 z-0">
-        <HeroBackgroundVideo src="/videos/mice.mp4" />
+        <HeroBackgroundVideo src="/videos/GymRatiaBueno.mp4" />
         <div className="absolute inset-0 bg-black/60 pointer-events-none" />
         {/* Bottom fade so video blends into page */}
         <div className="absolute bottom-0 left-0 right-0 h-48 md:h-64 bg-gradient-to-b from-transparent to-[#0A0A0B] pointer-events-none" />
@@ -118,9 +124,9 @@ function Hero() {
             <span className="text-xs text-[#7B8291] mt-1">Plan completo</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-2xl font-heading font-bold text-[#F8FAFC]">2</span>
-            <span className="text-sm text-[#A7AFBE]">coaches</span>
-            <span className="text-xs text-[#7B8291] mt-1">Con estilos únicos</span>
+            <span className="text-2xl font-heading font-bold text-[#F8FAFC]">1</span>
+            <span className="text-sm text-[#A7AFBE]">coach</span>
+            <span className="text-xs text-[#7B8291] mt-1">Con estilo único</span>
           </div>
           <div className="flex flex-col">
             <span className="text-2xl font-heading font-bold text-[#F8FAFC]">PPL</span>
@@ -136,24 +142,24 @@ function Hero() {
 function WhyChooseUs() {
   const features = [
     {
-      title: 'PLAN 9 SEMANAS',
-      text: 'Progresión real semana a semana, sin improvisar.',
-      icon: Calendar,
+      title: 'ENTRENADOR IA PERSONAL',
+      text: 'Chat directo con tu entrenador virtual. Te guía, adapta y motiva 24/7.',
+      icon: MessageCircle,
     },
     {
-      title: 'COACHES CON PERSONALIDAD',
-      text: 'Edu (culturismo intenso) y Carolina (salud/metabolismo).',
-      icon: Users,
+      title: 'PLANES COMPLETOS',
+      text: 'Entrenamientos estructurados y dietas personalizadas que evolucionan contigo.',
+      icon: Clipboard,
     },
     {
-      title: 'IA + ESTRUCTURA REAL',
-      text: 'Chat libre + datos objetivos para adaptar ejercicios.',
-      icon: Sparkles,
-    },
-    {
-      title: '100% ADAPTADO A TI',
-      text: 'Tus días disponibles, gustos y limitaciones mandan.',
+      title: 'SEGUIMIENTO INTEGRAL',
+      text: 'Registra peso, fotos, ejercicios y comidas. Todo en un solo lugar.',
       icon: Target,
+    },
+    {
+      title: 'ENTRENADORES REALES',
+      text: 'Elige entre entrenadores IA o conecta con entrenadores profesionales reales.',
+      icon: Users,
     },
   ]
 
@@ -164,7 +170,7 @@ function WhyChooseUs() {
           <h2 className="font-heading text-3xl md:text-4xl font-black uppercase mb-4">
             POR QUÉ <span className="text-[#FF2D2D]">ELEGIRNOS</span>
           </h2>
-          <p className="text-[#A7AFBE] text-lg">No es otro PDF genérico. Es un plan que te entiende.</p>
+          <p className="text-[#A7AFBE] text-lg">Tu entrenador personal en el bolsillo. IA que entiende tu progreso y adapta tu plan.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
           {features.map((feature, idx) => {
@@ -185,74 +191,32 @@ function WhyChooseUs() {
 
 // Trainers Preview Section
 function TrainersPreview() {
-  const trainers = personas.slice(0, 2)
-  
-  return (
-    <section className="py-[72px]">
-      <Container>
-        <div className="text-center mb-12">
-          <h2 className="font-heading text-3xl md:text-4xl font-black uppercase mb-4">
-            NUESTROS <span className="text-[#FF2D2D]">ENTRENADORES</span>
-          </h2>
-          <p className="text-[#A7AFBE] text-lg">Elige el estilo que mejor encaje contigo.</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 max-w-4xl mx-auto">
-          {trainers.map((trainer) => (
-            <Card key={trainer.slug} variant="surface" className="text-center">
-              <div className="w-24 h-24 rounded-full bg-[#1A1D24] mx-auto mb-4 flex items-center justify-center text-3xl font-heading">
-                {trainer.name[0]}
-              </div>
-              <h3 className="font-heading text-2xl font-bold mb-2">{trainer.name}</h3>
-              <p className="text-[#FF2D2D] text-sm mb-4">{trainer.headline}</p>
-              <div className="flex justify-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-[#FF2D2D] text-[#FF2D2D]" />
-                ))}
-              </div>
-              <Button 
-                href={`/trainers/${trainer.slug}/configure`} 
-                variant="accentSolid" 
-                size="md"
-                className="w-full"
-              >
-                Configurar con {trainer.name}
-              </Button>
-            </Card>
-          ))}
-        </div>
-        <div className="text-center">
-          <Button href="/trainers" variant="accentOutline" size="md">
-            Ver todos los entrenadores
-          </Button>
-        </div>
-      </Container>
-    </section>
-  )
+  return <TrainersPreviewClient />
 }
 
 // Services Tiles Section
 function ServicesTiles() {
   const services = [
     {
-      title: 'DIETARY RX',
-      text: 'Recomendaciones nutricionales según tu objetivo.',
-      icon: Salad,
-    },
-    {
-      title: 'PROGRAMAS',
-      text: 'Métodos de entrenamiento claros y progresivos.',
-      icon: Clipboard,
-    },
-    {
-      title: 'COACHING IA',
-      text: 'Conversación libre que cambia tu plan.',
+      title: 'CHAT CON ENTRENADOR',
+      text: 'Conversa libremente con tu entrenador IA. Pregunta, pide cambios y recibe feedback instantáneo.',
       icon: MessageCircle,
       glow: true,
     },
     {
-      title: 'TÉCNICA',
-      text: 'Notas para evitar lesiones y mejorar ejecución.',
+      title: 'ENTRENAMIENTOS',
+      text: 'Rutinas estructuradas por días y semanas. Ejercicios, series, repeticiones y progresión.',
       icon: Dumbbell,
+    },
+    {
+      title: 'NUTRICIÓN',
+      text: 'Planes de dieta personalizados, meal planner semanal y seguimiento de macros.',
+      icon: Salad,
+    },
+    {
+      title: 'PROGRESO',
+      text: 'Registra peso, fotos de progreso y logs de entrenamiento. Visualiza tu evolución.',
+      icon: Target,
     },
   ]
 
@@ -305,7 +269,7 @@ function Testimonials() {
     {
       name: 'Usuario 3',
       rating: 5,
-      text: 'Edu me apretó pero con lógica. Carolina me cuidó las rodillas.',
+      text: 'Jey me apretó pero con lógica. Plan adaptado a mis necesidades.',
       variant: 'surface' as const,
     },
   ]
@@ -337,7 +301,7 @@ function Testimonials() {
   )
 }
 
-// Final CTA Section
+// Final CTA Section para Alumnos
 function FinalCTA() {
   return (
     <section className="py-[84px]">
@@ -354,6 +318,30 @@ function FinalCTA() {
           </p>
           <div className="flex justify-center">
             <StartButton text="Comenzar ahora" size="xl" />
+          </div>
+        </Card>
+      </Container>
+    </section>
+  )
+}
+
+// Final CTA Section para Entrenadores
+function TrainerFinalCTA() {
+  return (
+    <section className="py-[84px]">
+      <Container>
+        <Card 
+          variant="surface" 
+          className="text-center border border-[rgba(255,255,255,0.08)] shadow-[0_0_40px_rgba(255,45,45,0.25)]"
+        >
+          <h2 className="font-heading text-3xl md:text-4xl font-black uppercase mb-4">
+            CREA TU ENTRENADOR IA HOY
+          </h2>
+          <p className="text-[#A7AFBE] text-lg mb-8">
+            En minutos tendrás tu IA personalizada lista para atender a tus alumnos 24/7.
+          </p>
+          <div className="flex justify-center">
+            <StartButton text="Empezar como entrenador" size="xl" />
           </div>
         </Card>
       </Container>
@@ -378,6 +366,11 @@ function Footer() {
               <li>
                 <Link href="/trainers" className="text-[#A7AFBE] hover:text-[#FF2D2D] text-sm transition-colors">
                   Entrenadores
+                </Link>
+              </li>
+              <li>
+                <Link href="/explore" className="text-[#A7AFBE] hover:text-[#FF2D2D] text-sm transition-colors">
+                  Explorar
                 </Link>
               </li>
             </ul>
@@ -416,14 +409,252 @@ function Footer() {
   )
 }
 
+// Hero Section para Entrenadores (no logueados)
+function TrainerHero() {
+  return (
+    <section className="relative min-h-[100vh] md:min-h-[95vh] flex items-center overflow-hidden bg-black">
+      <div className="absolute inset-0 z-0">
+        <HeroBackgroundVideo src="/videos/GymRatiaBueno.mp4" />
+        <div className="absolute inset-0 bg-black/60 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 h-48 md:h-64 bg-gradient-to-b from-transparent to-[#0A0A0B] pointer-events-none" />
+      </div>
+      
+      <Container className="relative z-10 grid md:grid-cols-2 gap-8 items-center pt-20 pb-32 md:pb-40">
+        <div>
+          <p className="text-xs tracking-[0.18em] text-[#A7AFBE] uppercase mb-4">
+            PARA ENTRENADORES
+          </p>
+          <h1 className="font-heading text-[44px] md:text-[72px] leading-[0.95] font-black uppercase mb-6">
+            <span className="text-[#F8FAFC]">CREA TU</span><br />
+            <span className="text-[#FF2D2D]">ENTRENADOR IA</span><br />
+            <span className="text-[#F8FAFC]">PERSONALIZADO</span>
+          </h1>
+          <p className="text-lg text-[#A7AFBE] max-w-[520px] mb-8">
+            Alimenta a tu IA con tu metodología única. Tus alumnos tendrán acceso a un entrenador virtual que habla como tú, piensa como tú y entrena como tú.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <StartButton text="Empezar como entrenador" size="xl" />
+            <Button href="/trainers" variant="ghost" size="xl">
+              Ver cómo funciona
+            </Button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-6 pt-8">
+          <div className="flex flex-col">
+            <span className="text-2xl font-heading font-bold text-[#FF2D2D]">IA</span>
+            <span className="text-sm text-[#A7AFBE]">Personalizada</span>
+            <span className="text-xs text-[#7B8291] mt-1">Tu metodología</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-2xl font-heading font-bold text-[#F8FAFC]">24/7</span>
+            <span className="text-sm text-[#A7AFBE]">Disponible</span>
+            <span className="text-xs text-[#7B8291] mt-1">Para tus alumnos</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-2xl font-heading font-bold text-[#F8FAFC]">∞</span>
+            <span className="text-xs text-[#7B8291] mt-1">Escalable</span>
+          </div>
+        </div>
+      </Container>
+    </section>
+  )
+}
+
+// Why Choose Us para Entrenadores
+function TrainerWhyChooseUs() {
+  const features = [
+    {
+      title: 'IA PERSONALIZADA',
+      text: 'Alimenta a tu IA con tu metodología, principios y estilo único de entrenamiento.',
+      icon: Sparkles,
+    },
+    {
+      title: 'CONTENIDO PROPIO',
+      text: 'Define tus entrenamientos y planes de dieta. Tu IA los utilizará con tus alumnos.',
+      icon: FileText,
+    },
+    {
+      title: 'PERFIL PÚBLICO',
+      text: 'Los alumnos pueden encontrarte y empezar a trabajar contigo de forma inmediata.',
+      icon: Users,
+    },
+    {
+      title: 'ESCALABILIDAD',
+      text: 'Atiende a múltiples alumnos simultáneamente sin límites de tiempo o capacidad.',
+      icon: TrendingUp,
+    },
+  ]
+
+  return (
+    <section className="py-[72px]">
+      <Container>
+        <div className="text-center mb-12">
+          <h2 className="font-heading text-3xl md:text-4xl font-black uppercase mb-4">
+            POR QUÉ <span className="text-[#FF2D2D]">ELEGIR GYMRATIA</span>
+          </h2>
+          <p className="text-[#A7AFBE] text-lg">La plataforma que te permite escalar tu metodología con IA.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+          {features.map((feature, idx) => {
+            const Icon = feature.icon
+            return (
+              <Card key={idx} variant="outlineAccent" className="text-center">
+                <Icon className="h-8 w-8 text-[#FF2D2D] mx-auto mb-4" />
+                <h3 className="font-heading text-lg font-bold mb-2 uppercase">{feature.title}</h3>
+                <p className="text-sm text-[#A7AFBE]">{feature.text}</p>
+              </Card>
+            )
+          })}
+        </div>
+      </Container>
+    </section>
+  )
+}
+
+// Services para Entrenadores
+function TrainerServices() {
+  const services = [
+    {
+      title: 'DEFINE TU METODOLOGÍA',
+      text: 'Crea entrenamientos y planes de dieta que reflejen tu estilo único. Tu IA los utilizará automáticamente.',
+      icon: Dumbbell,
+      glow: true,
+    },
+    {
+      title: 'PERFIL PÚBLICO',
+      text: 'Los alumnos te encuentran fácilmente. Tu perfil muestra tu experiencia, certificaciones y enfoque.',
+      icon: Users,
+    },
+    {
+      title: 'GESTIÓN DE ALUMNOS',
+      text: 'Ve quién está trabajando contigo, su progreso y mantén el control de tus relaciones.',
+      icon: Target,
+    },
+    {
+      title: 'ANALÍTICAS',
+      text: 'Métricas detalladas de tus alumnos, popularidad de tus planes y crecimiento de tu marca.',
+      icon: TrendingUp,
+    },
+  ]
+
+  return (
+    <section className="py-[72px]">
+      <Container>
+        <div className="text-center mb-12">
+          <h2 className="font-heading text-3xl md:text-4xl font-black uppercase mb-4">SERVICIOS PARA ENTRENADORES</h2>
+          <p className="text-[#A7AFBE] text-lg">Todo lo que necesitas para hacer crecer tu marca personal.</p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {services.map((service, idx) => {
+            const Icon = service.icon
+            return (
+              <Card 
+                key={idx} 
+                variant={service.glow ? 'accentTile' : 'darkTile'}
+                className={cn(
+                  'text-center',
+                  service.glow && 'shadow-[0_0_40px_rgba(255,45,45,0.25)]'
+                )}
+              >
+                <Icon className="h-8 w-8 text-[#FF2D2D] mx-auto mb-4" />
+                <h3 className="font-heading text-base font-bold mb-2 uppercase">{service.title}</h3>
+                <p className="text-xs text-[#A7AFBE]">{service.text}</p>
+              </Card>
+            )
+          })}
+        </div>
+      </Container>
+    </section>
+  )
+}
+
 // Main Page Component
 export default function Home() {
-  const { user, loading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
+  const [userMode, setUserMode] = useState<'student' | 'trainer'>('student')
+  const [showModeSelection, setShowModeSelection] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
-  if (loading) {
+  // Marcar como montado en el cliente
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Inicializar modo cuando el componente está montado
+  useEffect(() => {
+    if (!mounted || authLoading) return
+    if (typeof window === 'undefined') return
+    
+    const preferredMode = localStorage.getItem('preferred_mode') as 'student' | 'trainer' | null
+    const savedMode = localStorage.getItem('user_mode') as 'student' | 'trainer' | null
+    
+    if (user) {
+      // Usuario logueado: usar modo guardado
+      const mode = savedMode || 'student'
+      setUserMode(mode)
+      setShowModeSelection(false)
+    } else {
+      // Usuario no logueado: SIEMPRE mostrar selección si no hay modo guardado
+      if (!preferredMode && !savedMode) {
+        setShowModeSelection(true)
+      } else {
+        setUserMode(preferredMode || savedMode || 'student')
+        setShowModeSelection(false)
+      }
+    }
+  }, [user, authLoading, mounted])
+
+  // Escuchar cambios en localStorage para actualizar el modo inmediatamente
+  useEffect(() => {
+    if (!mounted) return
+    if (typeof window === 'undefined') return
+    
+    const handleModeChange = () => {
+      const savedMode = localStorage.getItem('user_mode') as 'student' | 'trainer' | null
+      if (savedMode && savedMode !== userMode) {
+        setUserMode(savedMode)
+      }
+    }
+    
+    // Verificar cada 200ms para cambios inmediatos del toggle
+    const interval = setInterval(() => {
+      const savedMode = localStorage.getItem('user_mode') as 'student' | 'trainer' | null
+      if (savedMode && savedMode !== userMode) {
+        setUserMode(savedMode)
+      }
+    }, 200)
+    
+    // Escuchar evento personalizado
+    window.addEventListener('modechange', handleModeChange)
+    window.addEventListener('storage', handleModeChange)
+    
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('modechange', handleModeChange)
+      window.removeEventListener('storage', handleModeChange)
+    }
+  }, [mounted, userMode])
+
+  const handleModeSelected = (mode: 'student' | 'trainer') => {
+    setUserMode(mode)
+    setShowModeSelection(false)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('preferred_mode', mode)
+      localStorage.setItem('user_mode', mode)
+    }
+  }
+
+  // Mostrar loading mientras auth carga o mientras se monta
+  if (authLoading || !mounted) {
+    return <LoadingScreen />
+  }
+
+  // Mostrar pantalla de elección si no hay modo seleccionado y no está logueado
+  if (!user && showModeSelection) {
     return (
-      <div className="bg-[#0A0A0B] min-h-screen flex items-center justify-center">
-        <div className="text-[#F8FAFC]">Cargando...</div>
+      <div className="bg-[#0A0A0B] min-h-screen">
+        <PersonalizedNavbar />
+        <ModeSelectionScreen onModeSelected={handleModeSelected} />
       </div>
     )
   }
@@ -432,16 +663,32 @@ export default function Home() {
     <div className="bg-[#0A0A0B] min-h-screen">
       <PersonalizedNavbar />
       {user ? (
+        // Usuario logueado - mostrar contenido según modo
         <EpicHomeAuthenticated />
       ) : (
+        // Usuario NO logueado - mostrar página principal según modo
         <>
-          <Hero />
-          <WhyChooseUs />
-          <TrainersPreview />
-          <ServicesTiles />
-          <Testimonials />
-          <FinalCTA />
-          <Footer />
+          {userMode === 'trainer' ? (
+            // Página principal para ENTRENADORES (no logueados)
+            <>
+              <TrainerHero />
+              <TrainerWhyChooseUs />
+              <TrainerServices />
+              <TrainerFinalCTA />
+              <Footer />
+            </>
+          ) : (
+            // Página principal para ALUMNOS (no logueados)
+            <>
+              <Hero />
+              <WhyChooseUs />
+              <TrainersPreview />
+              <ServicesTiles />
+              <Testimonials />
+              <FinalCTA />
+              <Footer />
+            </>
+          )}
         </>
       )}
     </div>

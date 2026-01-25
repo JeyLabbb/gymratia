@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Download, FileSpreadsheet } from 'lucide-react'
 
 type Props = {
   slug: string
@@ -8,41 +9,54 @@ type Props = {
 
 export function GeneratePlanButton({ slug }: Props) {
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleClick() {
     try {
       setLoading(true)
-      setMessage(null)
-      const response = await fetch('/api/generate-plan', {
+      setError(null)
+      
+      // Llamar a build-excel que genera y descarga el archivo
+      const response = await fetch('/api/build-excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          mode: 'basic',
           trainerSlug: slug,
-          title: 'Plan 9 semanas',
-          values: {}
+          profile: {
+            fullName: 'Usuario',
+            sex: 'hombre',
+            height_cm: 175,
+            weight_kg: 75,
+            goal: 'ganar músculo'
+          },
+          availability: {
+            daysPerWeek: 4,
+            cannotTrain: []
+          },
+          intensity: 8
         })
       })
 
       if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error')
-        console.error('Generate plan failed:', response.status, errorText)
-        setMessage(`Error: La petición falló (${response.status})`)
+        const errorText = await response.text().catch(() => 'Error desconocido')
+        setError('No se pudo generar el plan. Intenta más tarde.')
+        console.error('Build excel failed:', response.status, errorText)
         return
       }
 
-      const data = await response.json()
-      if (data.ok) {
-        const planIdText = data.planId ? ` (ID: ${data.planId})` : ' (no guardado en BD)'
-        setMessage(`Plan generado${planIdText}`)
-      } else {
-        console.error('Generate plan returned error:', data.error)
-        setMessage(`Error: ${data.error ?? 'desconocido'}`)
-      }
-    } catch (error: any) {
-      console.error('Unexpected error in GeneratePlanButton:', error)
-      setMessage(`Error inesperado: ${error?.message ?? error}`)
+      // Descargar el archivo
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `plan_${slug}_9_semanas.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      console.error('Error generating plan:', err)
+      setError('Error al generar el plan. Intenta más tarde.')
     } finally {
       setLoading(false)
     }
@@ -54,11 +68,23 @@ export function GeneratePlanButton({ slug }: Props) {
         type="button"
         onClick={handleClick}
         disabled={loading}
-        className="rounded-[1.25rem] bg-[#007AFF] px-5 py-3 text-white disabled:opacity-60"
+        className="inline-flex items-center justify-center gap-2 rounded-[18px] bg-transparent border border-[rgba(255,255,255,0.24)] px-4 py-2.5 text-xs md:text-sm font-medium text-[#F9FAFB] hover:border-[#FF2D2D]/70 hover:text-[#FFE4E6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {loading ? 'Generando…' : 'Generar plan (demo)'}
+        {loading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-[#FF2D2D] border-t-transparent rounded-full animate-spin" />
+            Generando...
+          </>
+        ) : (
+          <>
+            <FileSpreadsheet className="w-4 h-4" />
+            Descargar plan en Excel
+          </>
+        )}
       </button>
-      {message ? <div className="text-sm text-slate-600">{message}</div> : null}
+      {error && (
+        <p className="text-xs text-[#EF4444] mt-1">{error}</p>
+      )}
     </div>
   )
 }

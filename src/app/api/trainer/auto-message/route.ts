@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { personas } from '@/lib/personas'
+import { personas, getTrainerBySlug } from '@/lib/personas'
 import { chatConversational } from '@/lib/openai-chat'
 
 const supabase = createClient(
@@ -25,7 +25,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const trainer = personas.find((p) => p.slug === trainerSlug)
+    // Jey y Edu son entrenadores separados ahora
+    const trainer = getTrainerBySlug(trainerSlug)
     if (!trainer) {
       return NextResponse.json({ error: 'Trainer not found' }, { status: 404 })
     }
@@ -77,6 +78,18 @@ export async function POST(req: Request) {
       .eq('user_id', user.id)
       .single()
 
+    // Get the most recent weight from progress_tracking (more up-to-date than profile)
+    const { data: latestWeightEntry } = await supabase
+      .from('progress_tracking')
+      .select('weight_kg')
+      .eq('user_id', user.id)
+      .not('weight_kg', 'is', null)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const latestWeight = latestWeightEntry?.weight_kg || profile?.weight_kg
+
     // Get previous messages for context
     const { data: previousMessages } = await supabase
       .from('chat_messages')
@@ -121,7 +134,7 @@ export async function POST(req: Request) {
     const systemPrompt = `El usuario acaba de actualizar su perfil. ${changesContext}
 
 Responde de forma natural y conversacional según tu personalidad. 
-${trainer.slug === 'edu' 
+${trainer.slug === 'jey' 
   ? 'Eres EDU: el entrenador MÁS DURO. Serio, directo, intenso, culturista profesional de élite. NO eres amigable. NO eres comprensivo con excusas. Eres EXIGENTE, SIN PIEDAD y SIN RODEOS. Si el peso ha bajado mucho sin razón aparente, pregunta DIRECTAMENTE y con DUREZA si está siguiendo el plan o si hay algún problema. No aceptes excusas. Si ha mejorado significativamente, reconócelo brevemente sin exagerar - sé realista y profesional, no efusivo. Si cambió el objetivo, pregunta de forma directa y seria si quiere ajustar el plan. Si hay retrocesos, sé DURO y CLARO. Sé firme, serio, directo y exigente. NO uses emojis. NO uses lenguaje amigable ni empático. Mantén un tono profesional, serio y exigente en TODO momento. Eres para personas que funcionan con PRESIÓN.' 
   : 'Eres CAROLINA: amable, comprensiva, enfocada en salud y sostenibilidad. Reconoce los cambios positivamente. Si el peso cambió, pregunta cómo se siente con el cambio. Si cambió el objetivo, ofrece ayuda para ajustar el plan de forma sostenible. Sé alentadora y comprensiva.'}
 
@@ -142,7 +155,7 @@ Mantén tu personalidad en todo momento. Responde como si acabaras de enterarte 
       {
         fullName: profile?.preferred_name || profile?.full_name,
         height_cm: profile?.height_cm,
-        weight_kg: profile?.weight_kg,
+        weight_kg: latestWeight, // Use most recent weight from progress_tracking
         goal: profile?.goal,
         sex: profile?.sex,
         recentChanges: systemPrompt,

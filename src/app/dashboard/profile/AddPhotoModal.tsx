@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Save, Upload } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -21,6 +21,28 @@ export function AddPhotoModal({ isOpen, onClose, onSuccess, userId }: AddPhotoMo
     notes: ''
   })
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+
+  // Cargar datos guardados de localStorage al abrir
+  useEffect(() => {
+    if (isOpen && typeof window !== 'undefined') {
+      const savedData = localStorage.getItem('add-photo-modal-form')
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData)
+          setFormData(parsed)
+        } catch (e) {
+          console.error('Error parsing saved form data:', e)
+        }
+      }
+    }
+  }, [isOpen])
+
+  // Guardar datos en localStorage cuando cambien
+  useEffect(() => {
+    if (isOpen && typeof window !== 'undefined') {
+      localStorage.setItem('add-photo-modal-form', JSON.stringify(formData))
+    }
+  }, [formData, isOpen])
 
   if (!isOpen) return null
 
@@ -55,10 +77,57 @@ export function AddPhotoModal({ isOpen, onClose, onSuccess, userId }: AddPhotoMo
       const progressPhotosBucket = buckets?.find(b => b.id === 'progress-photos')
       
       if (!progressPhotosBucket) {
-        alert('Error: El bucket "progress-photos" no existe. Por favor, ejecuta el script create-storage-buckets.sql en Supabase.')
-        setSaving(false)
-        setUploading(false)
-        return
+        // Try to create bucket automatically
+        try {
+          const setupResponse = await fetch('/api/storage/setup-bucket', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ bucketId: 'progress-photos' }),
+          })
+
+          const setupData = await setupResponse.json()
+
+          if (!setupResponse.ok || setupData.manualSetupRequired) {
+            // Show detailed error message with instructions
+            const instructions = setupData.instructions
+            let message = '❌ El bucket "progress-photos" no existe.\n\n'
+            
+            if (instructions?.sql) {
+              message += '📋 Ejecuta este SQL en Supabase SQL Editor:\n\n'
+              message += instructions.sql + '\n\n'
+            }
+            
+            if (instructions?.steps) {
+              message += '📝 Pasos:\n'
+              instructions.steps.forEach((step: string) => {
+                message += step + '\n'
+              })
+            } else {
+              message += '📝 Pasos:\n'
+              message += '1. Ve a https://supabase.com/dashboard\n'
+              message += '2. Selecciona tu proyecto\n'
+              message += '3. Haz clic en "SQL Editor"\n'
+              message += '4. Copia y pega el contenido de create-progress-photos-bucket-only.sql\n'
+              message += '5. Haz clic en "Run"\n'
+            }
+
+            alert(message)
+            setSaving(false)
+            setUploading(false)
+            return
+          }
+
+          // Bucket created successfully, continue with upload
+        } catch (setupError) {
+          console.error('Error setting up bucket:', setupError)
+          alert('Error: No se pudo crear el bucket automáticamente. Por favor, ejecuta el script create-progress-photos-bucket-only.sql en Supabase SQL Editor.')
+          setSaving(false)
+          setUploading(false)
+          return
+        }
       }
 
       // Upload to Supabase Storage
@@ -105,6 +174,10 @@ export function AddPhotoModal({ isOpen, onClose, onSuccess, userId }: AddPhotoMo
         })
         setSelectedFile(null)
         setPreview(null)
+        // Limpiar localStorage al guardar exitosamente
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('add-photo-modal-form')
+        }
         onClose()
       } else {
         const error = await response.json()

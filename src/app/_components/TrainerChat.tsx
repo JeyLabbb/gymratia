@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from './AuthProvider'
-import { personas } from '@/lib/personas'
+import { personas, getTrainerBySlug } from '@/lib/personas'
 import { supabase } from '@/lib/supabase'
 import { Send, Loader2 } from 'lucide-react'
 
@@ -21,7 +21,7 @@ type TrainerChatProps = {
 
 export function TrainerChat({ trainerSlug, chatId: initialChatId, onChatCreated }: TrainerChatProps) {
   const { user } = useAuth()
-  const trainer = personas.find((p) => p.slug === trainerSlug)
+  const trainer = getTrainerBySlug(trainerSlug)
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)

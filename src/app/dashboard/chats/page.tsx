@@ -14,6 +14,8 @@ import {
   Plus
 } from 'lucide-react'
 import { DashboardLayout } from '@/app/_components/DashboardLayout'
+import { LoadingScreen } from '@/app/_components/LoadingScreen'
+import { TrainerChatLink } from '@/app/_components/TrainerChatLink'
 
 type TrainerChat = {
   id: string
@@ -67,11 +69,7 @@ export default function ChatsPage() {
   }
 
   if (authLoading || loading) {
-    return (
-      <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
-        <div className="text-[#F8FAFC]">Cargando...</div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (!user) {
@@ -97,12 +95,14 @@ export default function ChatsPage() {
           </div>
           
           <div className="grid md:grid-cols-2 gap-6">
-            {personas.map((trainer) => {
-              const chat = getTrainerChat(trainer.slug as 'edu' | 'carolina')
+            {personas.filter(t => t.is_active !== false).map((trainer) => {
+              const chat = getTrainerChat(trainer.slug as 'edu' | 'carolina' | 'jey')
               return (
-                <Link
+                <TrainerChatLink
                   key={trainer.slug}
-                  href={`/dashboard/chat/${trainer.slug}${chat ? `?chatId=${chat.id}` : ''}`}
+                  trainerSlug={trainer.slug}
+                  trainerName={trainer.name}
+                  variant="link"
                   className="block bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
                 >
                   <div className="flex items-start gap-4">
@@ -136,7 +136,7 @@ export default function ChatsPage() {
                     </div>
                     <MessageCircle className="w-6 h-6 text-[#FF2D2D] group-hover:scale-110 transition-transform" />
                   </div>
-                </Link>
+                </TrainerChatLink>
               )
             })}
           </div>

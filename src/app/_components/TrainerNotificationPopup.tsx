@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { X, MessageCircle } from 'lucide-react'
-import { personas } from '@/lib/personas'
+import { personas, getTrainerBySlug } from '@/lib/personas'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
@@ -20,7 +20,7 @@ export function TrainerNotificationPopup({
   onOpen,
 }: TrainerNotificationPopupProps) {
   const router = useRouter()
-  const trainer = personas.find((p) => p.slug === trainerSlug)
+  const trainer = getTrainerBySlug(trainerSlug)
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {

@@ -1,6 +1,33 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes speedupGif {
+  0%, 100% {
+    animation-timing-function: steps(1);
+  }
+}
+
+/* Prevent text selection and scrolling while resizing */
+body.resizing {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: row-resize !important;
+  overflow: hidden !important;
+}
+
+body.resizing * {
+  cursor: row-resize !important;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

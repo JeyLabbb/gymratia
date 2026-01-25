@@ -6,6 +6,7 @@ import { useEffect, use } from 'react'
 import { useAuth } from '@/app/_components/AuthProvider'
 import { ChatGPTStyleChat } from '@/app/_components/ChatGPTStyleChat'
 import { DashboardLayout } from '@/app/_components/DashboardLayout'
+import { LoadingScreen } from '@/app/_components/LoadingScreen'
 
 export default function ChatPage({ params }: { params: Promise<{ slug: string }> }) {
   const { user, loading } = useAuth()
@@ -23,18 +24,19 @@ export default function ChatPage({ params }: { params: Promise<{ slug: string }>
   }, [user, loading, router])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
-        <div className="text-[#F8FAFC]">Cargando...</div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (!user) {
     return null
   }
 
-  const trainerSlug = slug === 'edu' ? 'edu' : slug === 'carolina' ? 'carolina' : null
+  // Aceptar 'jey', 'edu' y 'carolina' como entrenadores separados
+  let trainerSlug: 'edu' | 'carolina' | 'jey' | null = null
+  
+  if (slug === 'jey' || slug === 'edu' || slug === 'carolina') {
+    trainerSlug = slug as 'edu' | 'carolina' | 'jey'
+  }
 
   if (!trainerSlug) {
     return (

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { LoadingScreen } from '@/app/_components/LoadingScreen'
 import { useAuth } from '@/app/_components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 
@@ -15,14 +16,34 @@ export default function OnboardingBasic() {
     intensity: '5',
     days: '3',
     allergies: '',
-    goal: ''
+    goal: '',
+    fullName: '',
+    preferredName: ''
   })
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth/login?redirect=/onboarding/basic')
     }
+    
+    // Cargar datos guardados de localStorage si existen
+    const savedValues = localStorage.getItem('onboarding-basic-form')
+    if (savedValues) {
+      try {
+        const parsed = JSON.parse(savedValues)
+        setValues(parsed)
+      } catch (e) {
+        console.error('Error cargando datos guardados:', e)
+      }
+    }
   }, [user, authLoading, router])
+  
+  // Guardar formulario en localStorage cuando cambia
+  useEffect(() => {
+    if (values && Object.keys(values).length > 0) {
+      localStorage.setItem('onboarding-basic-form', JSON.stringify(values))
+    }
+  }, [values])
 
   async function go() {
     if (!user) {
@@ -46,6 +67,8 @@ export default function OnboardingBasic() {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
+          full_name: values.fullName || undefined,
+          preferred_name: values.preferredName || undefined,
           height_cm: values.height ? Number(values.height) : undefined,
           weight_kg: values.weight ? Number(values.weight) : undefined,
           goal: values.goal || undefined,
@@ -59,6 +82,9 @@ export default function OnboardingBasic() {
         throw new Error(errorData.error || 'Failed to save profile')
       }
 
+      // Limpiar datos guardados después de guardar exitosamente
+      localStorage.removeItem('onboarding-basic-form')
+      
       // Navigate to trainers selection after saving profile
       router.push('/trainers')
     } catch (error: any) {
@@ -88,6 +114,29 @@ export default function OnboardingBasic() {
         <h1 className="font-heading text-3xl font-bold text-[#F8FAFC] mb-2">Comienza tu transformación</h1>
         <p className="text-[#A7AFBE] mb-6">Cuéntanos sobre ti para personalizar tu plan</p>
         <div className="mt-6 grid gap-4">
+          <div>
+            <label className="block text-sm text-[#A7AFBE] mb-2">Nombre completo</label>
+            <input
+              type="text"
+              className="w-full rounded-[16px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] px-4 py-3 text-[#F8FAFC] placeholder:text-[#7B8291] focus:outline-none focus:ring-2 focus:ring-[#FF2D2D]"
+              placeholder="Ej: Juan Pérez García"
+              value={values.fullName}
+              onChange={e => setValues(v => ({ ...v, fullName: e.target.value }))}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-[#A7AFBE] mb-2">Nombre preferido (cómo quieres que te llamen)</label>
+            <input
+              type="text"
+              className="w-full rounded-[16px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] px-4 py-3 text-[#F8FAFC] placeholder:text-[#7B8291] focus:outline-none focus:ring-2 focus:ring-[#FF2D2D]"
+              placeholder="Ej: Juan"
+              value={values.preferredName}
+              onChange={e => setValues(v => ({ ...v, preferredName: e.target.value }))}
+            />
+            <p className="text-xs text-[#7B8291] mt-1">Este es el nombre que usará tu entrenador para dirigirse a ti</p>
+          </div>
+
           <div>
             <label className="block text-sm text-[#A7AFBE] mb-2">Sexo</label>
             <select

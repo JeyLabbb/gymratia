@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/_components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
@@ -15,32 +15,58 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const { user, loading: authLoading, signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Check for error in URL (from OAuth callback)
+  useEffect(() => {
+    const urlError = searchParams.get('error')
+    if (urlError) {
+      setError(decodeURIComponent(urlError))
+    }
+  }, [searchParams])
 
   // Redirect if already authenticated
   useEffect(() => {
     if (!authLoading && user) {
       // Small delay to ensure session is fully established
-      setTimeout(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session) {
-            fetch('/api/user/profile', {
-              headers: {
-                Authorization: `Bearer ${session.access_token}`,
-              },
-            })
-              .then((res) => res.json())
-              .then((profileData) => {
-                if (profileData.profile) {
-                  router.push('/dashboard')
-                } else {
-                  router.push('/onboarding/basic')
-                }
-              })
-              .catch(() => {
-                router.push('/onboarding/basic')
-              })
+      setTimeout(async () => {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          // Verificar si hay un redirect en la URL
+          const redirect = searchParams.get('redirect')
+          if (redirect) {
+            router.push(redirect)
+            return
           }
-        })
+
+          // Verificar si tiene perfil de alumno
+          const profileRes = await fetch('/api/user/profile', {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          })
+          const profileData = await profileRes.json()
+          
+          // Verificar si tiene perfil de entrenador
+          const { data: trainer } = await supabase
+            .from('trainers')
+            .select('id')
+            .eq('user_id', session.user.id)
+            .maybeSingle()
+          
+          const savedMode = localStorage.getItem('user_mode') || 'student'
+          const hasTrainerProfile = !!trainer
+          const hasStudentProfile = !!profileData.profile
+          
+          // Redirigir a la página principal según el modo elegido
+          if (savedMode === 'trainer') {
+            localStorage.setItem('user_mode', 'trainer')
+            router.push('/')
+          } else {
+            localStorage.setItem('user_mode', 'student')
+            router.push('/')
+          }
+        }
       }, 500)
     }
   }, [user, authLoading, router])
@@ -52,13 +78,53 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        await signUpWithEmail(email, password, fullName)
+        try {
+          await signUpWithEmail(email, password, fullName)
+          // Signup exitoso, auto-login
+          await new Promise(resolve => setTimeout(resolve, 500))
+          await signInWithEmail(email, password)
+        } catch (signUpError: any) {
+          // Manejar errores específicos de signup
+          if (signUpError.message?.includes('already registered') || 
+              signUpError.message?.includes('already exists') ||
+              signUpError.message?.includes('User already registered')) {
+            setError('Esta cuenta ya existe. Inicia sesión en su lugar.')
+            setIsSignUp(false)
+            setLoading(false)
+            return
+          }
+          throw signUpError
+        }
       } else {
-        await signInWithEmail(email, password)
+        try {
+          await signInWithEmail(email, password)
+        } catch (signInError: any) {
+          // Manejar errores específicos de login
+          if (signInError.message?.includes('Invalid login credentials') || 
+              signInError.message?.includes('not found') ||
+              signInError.message?.includes('Invalid')) {
+            // Mensaje genérico pero claro
+            setError('Email o contraseña incorrectos. Si no tienes cuenta, crea una nueva. Si usaste Google para registrarte, inicia sesión con Google.')
+            setLoading(false)
+            return
+          }
+          throw signInError
+        }
       }
       
+      // Wait a bit for session to be established
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       // Check if user has profile
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError) {
+        console.error('Error obteniendo sesión:', sessionError)
+        setError(sessionError.message || 'Error al obtener la sesión')
+        setLoading(false)
+        return
+      }
+      
       if (session) {
         const profileRes = await fetch('/api/user/profile', {
           headers: {
@@ -67,17 +133,32 @@ export default function LoginPage() {
         })
         const profileData = await profileRes.json()
         
-        if (profileData.profile) {
-          router.push('/dashboard')
+        // Verificar si tiene perfil de entrenador
+        const { data: trainer } = await supabase
+          .from('trainers')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
+        
+        const savedMode = localStorage.getItem('user_mode') || 'student'
+        const hasTrainerProfile = !!trainer
+        const hasStudentProfile = !!profileData.profile
+        
+        // Redirigir a la página principal según el modo elegido
+        if (savedMode === 'trainer') {
+          localStorage.setItem('user_mode', 'trainer')
+          router.push('/')
         } else {
-          router.push('/onboarding/basic')
+          localStorage.setItem('user_mode', 'student')
+          router.push('/')
         }
       } else {
-        router.push('/onboarding/basic')
+        setError('No se pudo establecer la sesión. Por favor intenta de nuevo.')
+        setLoading(false)
       }
     } catch (err: any) {
+      console.error('Error en handleSubmit:', err)
       setError(err.message || 'Error al iniciar sesión')
-    } finally {
       setLoading(false)
     }
   }
@@ -86,9 +167,16 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
+      console.log('Iniciando login con Google...')
       await signInWithGoogle()
+      // Note: signInWithGoogle will redirect, so we don't set loading to false here
+      // If we reach here without redirect, there was an error
+      setTimeout(() => {
+        setLoading(false)
+      }, 2000)
     } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión con Google')
+      console.error('Error en handleGoogleSignIn:', err)
+      setError(err.message || 'Error al iniciar sesión con Google. Verifica que OAuth esté configurado en Supabase.')
       setLoading(false)
     }
   }

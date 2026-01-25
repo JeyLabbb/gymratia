@@ -10,7 +10,7 @@ import { TrainerSetupChat } from './TrainerSetupChat'
 export default function ConfigureEduPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const edu = personas.find((t) => t.slug === 'edu')
+  const jey = personas.find((t) => t.slug === 'jey')
 
   const handleComplete = async (answers: Record<string, string>) => {
     if (!user) return
@@ -43,7 +43,7 @@ export default function ConfigureEduPage() {
 
       // Generate plan (existing logic)
       const body = {
-        trainerSlug: 'edu',
+        trainerSlug: 'jey',
         profile: {
           fullName: answers.fullName ?? '',
           sex: answers.sex ?? '',
@@ -88,7 +88,7 @@ export default function ConfigureEduPage() {
       
       // Redirect to chat with trainer after plan generation
       setTimeout(() => {
-        router.push('/dashboard/chat/edu')
+        router.push('/dashboard/chat/jey')
       }, 1000)
     } catch (error: any) {
       console.error('Error in setup:', error)
@@ -96,7 +96,7 @@ export default function ConfigureEduPage() {
     }
   }
 
-  if (!edu || !edu.setupIntro || !edu.setupQuestions) {
+  if (!jey || !jey.setupIntro || !jey.setupQuestions) {
     return (
       <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
         <div className="text-[#F8FAFC]">Configuración no disponible</div>
@@ -108,9 +108,9 @@ export default function ConfigureEduPage() {
     <div className="min-h-screen bg-[#0A0A0B]">
       <div className="mx-auto max-w-2xl px-4 py-12">
         <TrainerSetupChat
-          trainerName={edu.name}
-          setupIntro={edu.setupIntro}
-          setupQuestions={edu.setupQuestions}
+          trainerName={jey.name}
+          setupIntro={jey.setupIntro}
+          setupQuestions={jey.setupQuestions}
           onComplete={handleComplete}
           enableFreeChat={true}
         />

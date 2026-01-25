@@ -1,23 +1,51 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Save } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+
+type ProgressEntry = {
+  id: string
+  date: string
+  weight_kg?: number
+  body_fat_percentage?: number
+  notes?: string
+}
 
 type AddProgressModalProps = {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
+  existingEntry?: ProgressEntry | null
 }
 
-export function AddProgressModal({ isOpen, onClose, onSuccess }: AddProgressModalProps) {
+export function AddProgressModal({ isOpen, onClose, onSuccess, existingEntry }: AddProgressModalProps) {
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    weight_kg: '',
-    body_fat_percentage: '',
-    notes: ''
+    date: existingEntry?.date || new Date().toISOString().split('T')[0],
+    weight_kg: existingEntry?.weight_kg?.toString() || '',
+    body_fat_percentage: existingEntry?.body_fat_percentage?.toString() || '',
+    notes: existingEntry?.notes || ''
   })
+
+  // Update form data when existingEntry changes
+  useEffect(() => {
+    if (existingEntry) {
+      setFormData({
+        date: existingEntry.date,
+        weight_kg: existingEntry.weight_kg?.toString() || '',
+        body_fat_percentage: existingEntry.body_fat_percentage?.toString() || '',
+        notes: existingEntry.notes || ''
+      })
+    } else {
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        weight_kg: '',
+        body_fat_percentage: '',
+        notes: ''
+      })
+    }
+  }, [existingEntry, isOpen])
 
   if (!isOpen) return null
 
@@ -44,19 +72,34 @@ export function AddProgressModal({ isOpen, onClose, onSuccess }: AddProgressModa
       const isToday = selectedDate.getTime() === today.getTime()
       const weightValue = formData.weight_kg ? parseFloat(formData.weight_kg) : null
 
-      // Save progress
-      const response = await fetch('/api/progress', {
-        method: 'POST',
+      // Save or update progress
+      const url = existingEntry 
+        ? '/api/progress' 
+        : '/api/progress'
+      const method = existingEntry ? 'PUT' : 'POST'
+      
+      const body = existingEntry
+        ? {
+            id: existingEntry.id,
+            date: formData.date,
+            weight_kg: weightValue,
+            body_fat_percentage: formData.body_fat_percentage ? parseFloat(formData.body_fat_percentage) : null,
+            notes: formData.notes || null
+          }
+        : {
+            date: formData.date,
+            weight_kg: weightValue,
+            body_fat_percentage: formData.body_fat_percentage ? parseFloat(formData.body_fat_percentage) : null,
+            notes: formData.notes || null
+          }
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          date: formData.date,
-          weight_kg: weightValue,
-          body_fat_percentage: formData.body_fat_percentage ? parseFloat(formData.body_fat_percentage) : null,
-          notes: formData.notes || null
-        }),
+        body: JSON.stringify(body),
       })
 
       if (response.ok) {
@@ -85,6 +128,10 @@ export function AddProgressModal({ isOpen, onClose, onSuccess }: AddProgressModa
           body_fat_percentage: '',
           notes: ''
         })
+        // Limpiar localStorage al guardar exitosamente
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('add-progress-modal-form')
+        }
         onClose()
       } else {
         const error = await response.json()
@@ -102,7 +149,9 @@ export function AddProgressModal({ isOpen, onClose, onSuccess }: AddProgressModa
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 w-full max-w-md mx-4">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="font-heading text-xl font-bold text-[#F8FAFC]">Añadir Registro de Progreso</h3>
+          <h3 className="font-heading text-xl font-bold text-[#F8FAFC]">
+            {existingEntry ? 'Editar Registro de Progreso' : 'Añadir Registro de Progreso'}
+          </h3>
           <button
             onClick={onClose}
             className="p-2 hover:bg-[#1A1D24] rounded-lg transition-colors"

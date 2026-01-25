@@ -78,7 +78,13 @@ export async function POST(req: Request) {
     if (fullName) profileData.full_name = fullName
     if (preferredName) profileData.preferred_name = preferredName
     if (heightCm !== undefined && heightCm !== null && heightCm !== '') {
-      profileData.height_cm = Number(heightCm)
+      let heightValue = Number(heightCm)
+      // If height is less than 100, assume it's in meters and convert to cm
+      if (heightValue > 0 && heightValue < 100) {
+        heightValue = heightValue * 100
+      }
+      // Ensure it's an integer for INTEGER column type
+      profileData.height_cm = Math.round(heightValue)
     }
     if (weightKg !== undefined && weightKg !== null && weightKg !== '') {
       profileData.weight_kg = Number(weightKg)
@@ -115,7 +121,13 @@ export async function POST(req: Request) {
       if (fullName !== undefined) updateData.full_name = fullName
       if (preferredName !== undefined) updateData.preferred_name = preferredName
       if (heightCm !== undefined && heightCm !== null && heightCm !== '') {
-        updateData.height_cm = Number(heightCm)
+        let heightValue = Number(heightCm)
+        // If height is less than 100, assume it's in meters and convert to cm
+        if (heightValue > 0 && heightValue < 100) {
+          heightValue = heightValue * 100
+        }
+        // Ensure it's an integer for INTEGER column type
+        updateData.height_cm = Math.round(heightValue)
       }
       if (weightKg !== undefined && weightKg !== null && weightKg !== '') {
         updateData.weight_kg = Number(weightKg)
@@ -158,6 +170,30 @@ export async function POST(req: Request) {
           error: `Failed to create profile: ${error.message}`,
           details: error 
         }, { status: 500 })
+      }
+
+      // If weight was provided, create initial progress record for today
+      if (weightKg !== undefined && weightKg !== null && weightKg !== '') {
+        const today = new Date().toISOString().split('T')[0]
+        try {
+          const { error: progressError } = await supabaseAdmin
+            .from('progress_tracking')
+            .insert({
+              user_id: user.id,
+              date: today,
+              weight_kg: Number(weightKg),
+            })
+
+          if (progressError) {
+            console.error('Error creating initial progress record:', progressError)
+            // Don't fail the request if progress record creation fails
+          } else {
+            console.log('✅ Initial progress record created for user:', user.id, 'with weight:', weightKg)
+          }
+        } catch (e) {
+          console.error('Error creating initial progress record:', e)
+          // Don't fail the request if progress record creation fails
+        }
       }
 
       return NextResponse.json({ 

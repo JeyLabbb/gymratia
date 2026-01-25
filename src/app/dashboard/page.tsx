@@ -19,6 +19,9 @@ import {
   Zap
 } from 'lucide-react'
 import { DashboardLayout } from '@/app/_components/DashboardLayout'
+import { LoadingScreen } from '@/app/_components/LoadingScreen'
+import SafeImage from '@/app/_components/SafeImage'
+import { TrainerChatLink } from '@/app/_components/TrainerChatLink'
 
 type TrainerChat = {
   id: string
@@ -33,6 +36,7 @@ type UserProfile = {
   height_cm?: number
   goal?: string
   preferred_name?: string
+  full_name?: string
 }
 
 export default function DashboardPage() {
@@ -41,6 +45,7 @@ export default function DashboardPage() {
   const [chats, setChats] = useState<TrainerChat[]>([])
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [trainerAvatars, setTrainerAvatars] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -52,8 +57,38 @@ export default function DashboardPage() {
     if (user) {
       loadChats()
       loadProfile()
+      loadTrainerAvatars()
     }
   }, [user])
+
+  const loadTrainerAvatars = async () => {
+    try {
+      const activeTrainers = personas.filter(t => t.is_active !== false)
+      const avatars: Record<string, string> = {}
+      
+      for (const trainer of activeTrainers) {
+        try {
+          // Buscar avatar con el slug del trainer (jey, edu, carolina son separados)
+          const { data: trainerData } = await supabase
+            .from('trainers')
+            .select('avatar_url')
+            .eq('slug', trainer.slug)
+            .maybeSingle()
+          
+          if (trainerData?.avatar_url) {
+            avatars[trainer.slug] = trainerData.avatar_url
+          }
+        } catch (error) {
+          console.error(`Error loading avatar for ${trainer.slug}:`, error)
+        }
+      }
+      
+      console.log('Loaded trainer avatars:', avatars) // Debug
+      setTrainerAvatars(avatars)
+    } catch (error) {
+      console.error('Error loading trainer avatars:', error)
+    }
+  }
 
   const loadChats = async () => {
     if (!user) return
@@ -102,18 +137,14 @@ export default function DashboardPage() {
   }
 
   if (authLoading || loading) {
-    return (
-      <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
-        <div className="text-[#F8FAFC]">Cargando...</div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (!user) {
     return null
   }
 
-  const getTrainerChat = (slug: 'edu' | 'carolina') => {
+  const getTrainerChat = (slug: 'edu' | 'carolina' | 'jey') => {
     return chats.find((c) => c.trainer_slug === slug)
   }
 
@@ -123,20 +154,20 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout activeSection="dashboard">
-      <div className="flex-1 overflow-y-auto px-6 py-8">
-        <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-8">
+        <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
           {/* Welcome Header */}
-          <div className="bg-gradient-to-r from-[#FF2D2D]/10 to-[#FF2D2D]/5 border border-[#FF2D2D]/20 rounded-[22px] p-6">
-            <h1 className="font-heading text-3xl font-bold text-[#F8FAFC] mb-2">
+          <div className="bg-gradient-to-r from-[#FF2D2D]/10 to-[#FF2D2D]/5 border border-[#FF2D2D]/20 rounded-[12px] sm:rounded-[22px] p-4 sm:p-6">
+            <h1 className="font-heading text-xl sm:text-3xl font-bold text-[#F8FAFC] mb-1 sm:mb-2">
               ¡Hola, {displayName}! 👋
             </h1>
-            <p className="text-[#A7AFBE]">
+            <p className="text-xs sm:text-base text-[#A7AFBE]">
               Continúa tu transformación. Aquí tienes un resumen de tu progreso.
             </p>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
             <Link
               href="/dashboard/profile"
               className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
@@ -191,38 +222,52 @@ export default function DashboardPage() {
 
           {/* Trainers Section - Mis Chats */}
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-2xl font-bold text-[#F8FAFC]">Mis Entrenadores</h2>
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="font-heading text-lg sm:text-2xl font-bold text-[#F8FAFC]">Mis Entrenadores</h2>
               <Link
                 href="/trainers"
-                className="text-sm text-[#FF2D2D] hover:text-[#FF3D3D] transition-colors flex items-center gap-1"
+                className="text-xs sm:text-sm text-[#FF2D2D] hover:text-[#FF3D3D] transition-colors flex items-center gap-1"
               >
-                Ver todos <ArrowRight className="w-4 h-4" />
+                <span className="hidden sm:inline">Ver todos</span>
+                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
               </Link>
             </div>
-            <div className="grid md:grid-cols-2 gap-6">
-              {personas.map((trainer) => {
-                const chat = getTrainerChat(trainer.slug as 'edu' | 'carolina')
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
+              {personas.filter(t => t.is_active !== false).map((trainer) => {
+                const chat = getTrainerChat(trainer.slug as 'edu' | 'carolina' | 'jey')
+                const trainerAvatar = trainerAvatars[trainer.slug]
                 return (
-                  <Link
+                  <TrainerChatLink
                     key={trainer.slug}
-                    href={`/dashboard/chat/${trainer.slug}${chat ? `?chatId=${chat.id}` : ''}`}
-                    className="block bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
+                    trainerSlug={trainer.slug}
+                    trainerName={trainer.name}
+                    variant="link"
+                    className="block bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-4 sm:p-6 hover:border-[#FF2D2D]/50 transition-all group"
                   >
-                    <div className="flex items-start gap-4">
-                      <div className="w-16 h-16 rounded-full bg-[#FF2D2D] flex items-center justify-center text-white font-heading font-bold text-2xl flex-shrink-0 group-hover:scale-110 transition-transform">
-                        {trainer.name[0]}
-                      </div>
-                      <div className="flex-1">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      {trainerAvatar ? (
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-[#FF2D2D] flex-shrink-0">
+                          <SafeImage
+                            src={trainerAvatar}
+                            alt={trainer.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#FF2D2D] flex items-center justify-center text-white font-heading font-bold text-lg sm:text-2xl flex-shrink-0">
+                          {trainer.name[0]}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-heading text-xl font-bold text-[#F8FAFC]">
+                          <h3 className="font-heading text-base sm:text-xl font-bold text-[#F8FAFC] truncate">
                             {trainer.name}
                           </h3>
                           {chat && (
-                            <div className="w-2 h-2 rounded-full bg-[#FF2D2D] animate-pulse" />
+                            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#FF2D2D] animate-pulse flex-shrink-0" />
                           )}
                         </div>
-                        <p className="text-sm text-[#A7AFBE] mb-2">{trainer.headline}</p>
+                        <p className="text-xs sm:text-sm text-[#A7AFBE] mb-2 line-clamp-2">{trainer.headline}</p>
                         {chat ? (
                           <div className="flex items-center gap-2">
                             <Calendar className="w-3 h-3 text-[#7B8291]" />
@@ -240,7 +285,7 @@ export default function DashboardPage() {
                       </div>
                       <MessageCircle className="w-6 h-6 text-[#FF2D2D] group-hover:scale-110 transition-transform" />
                     </div>
-                  </Link>
+                  </TrainerChatLink>
                 )
               })}
             </div>

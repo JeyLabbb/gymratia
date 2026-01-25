@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { personas } from '@/lib/personas'
+import { personas, getTrainerBySlug } from '@/lib/personas'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,7 +24,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const trainer = personas.find((p) => p.slug === trainerSlug)
+    // Jey y Edu son entrenadores separados ahora
+    const trainer = getTrainerBySlug(trainerSlug)
     if (!trainer) {
       return NextResponse.json({ error: 'Trainer not found' }, { status: 404 })
     }
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
     // This makes the initial load much faster
     let welcomeMessage: string
     
-    if (trainer.slug === 'edu') {
+    if (trainer.slug === 'jey') {
       welcomeMessage = `Soy ${trainer.name}. Has empezado tu plan de ${trainer.cycle_weeks} semanas. Sin excusas, sin mentiras. Si sigues el plan, verás resultados. Si no, no pierdas mi tiempo. ¿Tienes alguna pregunta sobre el entrenamiento o la nutrición?`
     } else {
       welcomeMessage = `Hola${userName !== 'Usuario' ? ` ${userName}` : ''}! Soy ${trainer.name}, tu entrenadora. Estoy aquí para ayudarte a alcanzar tus objetivos de forma sostenible y saludable. Tu objetivo es: ${userGoal}. ¿Tienes alguna pregunta sobre tu plan de ${trainer.cycle_weeks} semanas o sobre nutrición?`

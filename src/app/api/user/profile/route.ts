@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { height_cm, weight_kg, goal, sex, full_name, preferred_name, avatar_url } = body
+    const { height_cm, weight_kg, goal, sex, full_name, preferred_name, avatar_url, preferred_meal_times, training_schedule } = body
 
     const authHeader = req.headers.get('authorization')
     if (!authHeader) {
@@ -49,7 +49,13 @@ export async function POST(req: Request) {
     }
 
     if (height_cm !== undefined && height_cm !== null && height_cm !== '') {
-      profileData.height_cm = Number(height_cm)
+      let heightValue = Number(height_cm)
+      // If height is less than 100, assume it's in meters and convert to cm
+      if (heightValue > 0 && heightValue < 100) {
+        heightValue = heightValue * 100
+      }
+      // Ensure it's an integer for INTEGER column type
+      profileData.height_cm = Math.round(heightValue)
     }
     if (weight_kg !== undefined && weight_kg !== null && weight_kg !== '') {
       profileData.weight_kg = Number(weight_kg)
@@ -59,10 +65,17 @@ export async function POST(req: Request) {
     if (full_name) profileData.full_name = full_name
     if (preferred_name) profileData.preferred_name = preferred_name
     if (avatar_url) profileData.avatar_url = avatar_url
+    if (preferred_meal_times) profileData.preferred_meal_times = preferred_meal_times
+    if (training_schedule) profileData.training_schedule = training_schedule
     if (user.email) profileData.email = user.email
 
     let updatedProfile
     if (existingProfile) {
+      // Check if weight is being updated
+      const isWeightUpdate = weight_kg !== undefined && weight_kg !== null && weight_kg !== ''
+      const oldWeight = existingProfile.weight_kg
+      const newWeight = isWeightUpdate ? Number(weight_kg) : null
+
       // Update existing profile (trigger will handle notifications)
       const { data, error } = await supabaseAdmin
         .from('user_profiles')
@@ -79,6 +92,76 @@ export async function POST(req: Request) {
         }, { status: 500 })
       }
       updatedProfile = data
+
+      // Si se actualizó full_name, sincronizar con el perfil de entrenador si existe
+      if (full_name && updatedProfile.full_name) {
+        const { data: trainerProfile } = await supabaseAdmin
+          .from('trainers')
+          .select('id, full_name')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        if (trainerProfile && trainerProfile.full_name !== updatedProfile.full_name) {
+          await supabaseAdmin
+            .from('trainers')
+            .update({ 
+              full_name: updatedProfile.full_name,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id)
+        }
+      }
+
+      // If weight was updated and it changed, create or update progress record for today
+      if (isWeightUpdate && newWeight !== null && newWeight !== oldWeight) {
+        const today = new Date().toISOString().split('T')[0]
+        try {
+          // Check if a progress record already exists for today
+          const { data: existingProgress, error: checkError } = await supabaseAdmin
+            .from('progress_tracking')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('date', today)
+            .maybeSingle()
+
+          if (checkError && checkError.code !== 'PGRST116') {
+            console.error('Error checking existing progress record:', checkError)
+          } else if (existingProgress) {
+            // Update existing record
+            const { error: updateError } = await supabaseAdmin
+              .from('progress_tracking')
+              .update({
+                weight_kg: newWeight,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', existingProgress.id)
+
+            if (updateError) {
+              console.error('Error updating progress record:', updateError)
+            } else {
+              console.log('✅ Progress record updated for user:', user.id, 'with weight:', newWeight)
+            }
+          } else {
+            // Create new record
+            const { error: insertError } = await supabaseAdmin
+              .from('progress_tracking')
+              .insert({
+                user_id: user.id,
+                date: today,
+                weight_kg: newWeight,
+              })
+
+            if (insertError) {
+              console.error('Error creating progress record:', insertError)
+            } else {
+              console.log('✅ Progress record created for user:', user.id, 'with weight:', newWeight)
+            }
+          }
+        } catch (e) {
+          console.error('Error handling progress record:', e)
+          // Don't fail the request if progress record creation fails
+        }
+      }
     } else {
       // Create new profile
       profileData.created_at = new Date().toISOString()
@@ -96,6 +179,30 @@ export async function POST(req: Request) {
         }, { status: 500 })
       }
       updatedProfile = data
+
+      // If weight was provided, create initial progress record for today
+      if (weight_kg !== undefined && weight_kg !== null && weight_kg !== '') {
+        const today = new Date().toISOString().split('T')[0]
+        try {
+          const { error: progressError } = await supabaseAdmin
+            .from('progress_tracking')
+            .insert({
+              user_id: user.id,
+              date: today,
+              weight_kg: Number(weight_kg),
+            })
+
+          if (progressError) {
+            console.error('Error creating initial progress record:', progressError)
+            // Don't fail the request if progress record creation fails
+          } else {
+            console.log('✅ Initial progress record created for user:', user.id, 'with weight:', weight_kg)
+          }
+        } catch (e) {
+          console.error('Error creating initial progress record:', e)
+          // Don't fail the request if progress record creation fails
+        }
+      }
     }
 
     return NextResponse.json({ 
