@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-export default function CallbackPage() {
+function CallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -111,6 +111,20 @@ export default function CallbackPage() {
         <div className="text-sm text-[#A7AFBE]">Por favor espera</div>
       </div>
     </div>
+  )
+}
+
+export default function CallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
+          <div className="text-[#F8FAFC]">Completando inicio de sesión...</div>
+        </div>
+      }
+    >
+      <CallbackContent />
+    </Suspense>
   )
 }
 

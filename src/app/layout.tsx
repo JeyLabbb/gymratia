@@ -1,22 +1,24 @@
 import type { Metadata } from "next";
-import { Bebas_Neue, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { AuthProvider } from "./_components/AuthProvider";
 import { TrainerNotificationsProvider } from "./_components/TrainerNotificationsProvider";
 
-const bebasNeue = Bebas_Neue({
+const bebasNeue = localFont({
+  src: "../../node_modules/@fontsource/bebas-neue/files/bebas-neue-latin-400-normal.woff2",
   variable: "--font-bebas",
-  weight: "400",
-  subsets: ["latin"],
   display: "swap",
-  fallback: ["Arial", "sans-serif"],
+  weight: "400",
 });
 
-const inter = Inter({
+const inter = localFont({
+  src: [
+    { path: "../../node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../../node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "../../node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-inter",
-  subsets: ["latin"],
   display: "swap",
-  fallback: ["system-ui", "Arial", "sans-serif"],
 });
 
 export const metadata: Metadata = {

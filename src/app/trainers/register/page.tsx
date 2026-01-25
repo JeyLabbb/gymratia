@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/_components/AuthProvider'
 import { supabase } from '@/lib/supabase'
@@ -18,7 +18,7 @@ type Certificate = {
   fileName: string | null
 }
 
-export default function TrainerRegisterPage() {
+function TrainerRegisterContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialStep = searchParams.get('step') === '2' ? 2 : 1
@@ -756,6 +756,14 @@ export default function TrainerRegisterPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function TrainerRegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center"><div className="text-[#F8FAFC]">Cargando...</div></div>}>
+      <TrainerRegisterContent />
+    </Suspense>
   )
 }
 

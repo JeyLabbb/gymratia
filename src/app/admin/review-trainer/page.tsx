@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 
-export default function ReviewTrainerPage() {
+function ReviewTrainerContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const [loading, setLoading] = useState(false)
@@ -124,6 +124,20 @@ export default function ReviewTrainerPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ReviewTrainerPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-[#FF2D2D]" />
+        </div>
+      }
+    >
+      <ReviewTrainerContent />
+    </Suspense>
   )
 }
 

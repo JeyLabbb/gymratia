@@ -2,13 +2,13 @@
 
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from 'next/navigation'
-import { useEffect, use } from 'react'
+import { useEffect, use, Suspense } from 'react'
 import { useAuth } from '@/app/_components/AuthProvider'
 import { ChatGPTStyleChat } from '@/app/_components/ChatGPTStyleChat'
 import { DashboardLayout } from '@/app/_components/DashboardLayout'
 import { LoadingScreen } from '@/app/_components/LoadingScreen'
 
-export default function ChatPage({ params }: { params: Promise<{ slug: string }> }) {
+function ChatPageContent({ params }: { params: Promise<{ slug: string }> }) {
   const { user, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -50,6 +50,14 @@ export default function ChatPage({ params }: { params: Promise<{ slug: string }>
     <DashboardLayout activeSection="chat">
       <ChatGPTStyleChat trainerSlug={trainerSlug} chatId={chatId} />
     </DashboardLayout>
+  )
+}
+
+export default function ChatPage({ params }: { params: Promise<{ slug: string }> }) {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <ChatPageContent params={params} />
+    </Suspense>
   )
 }
 

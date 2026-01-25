@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/_components/AuthProvider'
 import { supabase } from '@/lib/supabase'
@@ -28,7 +28,7 @@ type DietTemplate = {
   daily_fats_g: number
 }
 
-export default function TrainerOnboardingPage() {
+function TrainerOnboardingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const trainerId = searchParams.get('trainerId')
@@ -601,6 +601,14 @@ function DietCreationStep({
         </button>
       </div>
     </div>
+  )
+}
+
+export default function TrainerOnboardingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center"><div className="text-[#F8FAFC]">Cargando...</div></div>}>
+      <TrainerOnboardingContent />
+    </Suspense>
   )
 }
 
