@@ -128,7 +128,7 @@ export function WorkoutTableView({ workout, onUpdate }: WorkoutTableViewProps) {
     setCellValue(value)
   }
 
-  const detectUnusualChange = (exercise: Exercise, field: string, newValue: string, oldValue: any, exerciseDate: string) => {
+  const detectUnusualChange = (exercise: Exercise, field: string, newValue: string, oldValue: any, exerciseDate: string, setNum: number) => {
     // Get historical logs for this exercise and set
     const previousLogs = logs
       .filter(l => l.exercise_name === exercise.name && new Date(l.date) < new Date(exerciseDate))
@@ -143,7 +143,7 @@ export function WorkoutTableView({ workout, onUpdate }: WorkoutTableViewProps) {
     // Extract values for this specific set from history
     const historicalValues = previousLogs
       .map(log => {
-        const setData = log.sets?.find(s => s.set_number === set)
+        const setData = log.sets?.find(s => s.set_number === setNum)
         return setData ? {
           date: log.date,
           reps: setData.reps,
@@ -191,7 +191,7 @@ export function WorkoutTableView({ workout, onUpdate }: WorkoutTableViewProps) {
 
       // Get current weight from the log being edited
       const currentLog = getLogForExercise(exercise.name, exerciseDate)
-      const currentSet = currentLog?.sets?.find(s => s.set_number === set)
+      const currentSet = currentLog?.sets?.find(s => s.set_number === setNum)
       const currentWeight = currentSet?.weight_kg || lastWeight
 
       // Detect drastic changes in pattern (not just drops, but impossible improvements)
@@ -251,7 +251,7 @@ export function WorkoutTableView({ workout, onUpdate }: WorkoutTableViewProps) {
 
       // Get current reps from the log being edited
       const currentLog = getLogForExercise(exercise.name, exerciseDate)
-      const currentSet = currentLog?.sets?.find(s => s.set_number === set)
+      const currentSet = currentLog?.sets?.find(s => s.set_number === setNum)
       const currentReps = currentSet?.reps || lastReps
 
       // Detect drastic weight changes
@@ -304,7 +304,7 @@ export function WorkoutTableView({ workout, onUpdate }: WorkoutTableViewProps) {
       const setData = log?.sets?.find(s => s.set_number === set)
       const oldValue = field === 'reps' ? setData?.reps : field === 'weight' ? setData?.weight_kg : null
       
-      const unusualChange = detectUnusualChange(exerciseData, field, value, oldValue, date)
+      const unusualChange = detectUnusualChange(exerciseData, field, value, oldValue, date, set)
 
       // Get or create log for this exercise and date
       let updatedLog = getLogForExercise(exercise, date)
@@ -330,7 +330,7 @@ export function WorkoutTableView({ workout, onUpdate }: WorkoutTableViewProps) {
 
         if (response.ok) {
           await loadLogs()
-          toast.addToast('Datos guardados', 'success')
+          toast.showToast('Datos guardados', 'success')
 
           // If unusual change detected, notify trainer
           if (unusualChange && workout.trainer_slug) {
@@ -367,7 +367,7 @@ export function WorkoutTableView({ workout, onUpdate }: WorkoutTableViewProps) {
 
         if (response.ok) {
           await loadLogs()
-          toast.addToast('Datos guardados', 'success')
+          toast.showToast('Datos guardados', 'success')
 
           // If unusual change detected, notify trainer
           if (unusualChange && workout.trainer_slug) {
@@ -380,7 +380,7 @@ export function WorkoutTableView({ workout, onUpdate }: WorkoutTableViewProps) {
       setCellValue('')
     } catch (error) {
       console.error('Error saving log:', error)
-      toast.addToast('Error al guardar', 'error')
+      toast.showToast('Error al guardar', 'error')
     }
   }
 

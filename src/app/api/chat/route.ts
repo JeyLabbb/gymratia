@@ -93,7 +93,11 @@ async function autoSaveDiet(
         }
       })
       if (allowedFoods.length > 0) {
-        await supabase.from('user_food_categories').insert(allowedFoods).catch(console.error)
+        try {
+          await supabase.from('user_food_categories').insert(allowedFoods)
+        } catch (e) {
+          console.error(e)
+        }
       }
     }
 
@@ -117,7 +121,11 @@ async function autoSaveDiet(
         }
       })
       if (controlledFoods.length > 0) {
-        await supabase.from('user_food_categories').insert(controlledFoods).catch(console.error)
+        try {
+          await supabase.from('user_food_categories').insert(controlledFoods)
+        } catch (e) {
+          console.error(e)
+        }
       }
     }
 
@@ -140,7 +148,11 @@ async function autoSaveDiet(
         }
       })
       if (prohibitedFoods.length > 0) {
-        await supabase.from('user_food_categories').insert(prohibitedFoods).catch(console.error)
+        try {
+          await supabase.from('user_food_categories').insert(prohibitedFoods)
+        } catch (e) {
+          console.error(e)
+        }
       }
     }
   } catch (error) {

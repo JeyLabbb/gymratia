@@ -70,7 +70,7 @@ Reglas:
           cannotTrain: Array.isArray(values?.cannotTrainDays)
             ? values.cannotTrainDays
             : typeof values?.cannotTrainDays === 'string'
-              ? values.cannotTrainDays.split(',').map((d) => d.trim()).filter(Boolean)
+              ? values.cannotTrainDays.split(',').map((d: string) => d.trim()).filter(Boolean)
               : undefined
         },
         intensity: typeof values?.intensity === 'number' ? values.intensity : undefined
@@ -107,7 +107,7 @@ Reglas:
         cannotTrain: Array.isArray(values?.cannotTrainDays)
           ? values.cannotTrainDays
           : typeof values?.cannotTrainDays === 'string'
-            ? values.cannotTrainDays.split(',').map((d) => d.trim()).filter(Boolean)
+            ? values.cannotTrainDays.split(',').map((d: string) => d.trim()).filter(Boolean)
             : undefined
       },
       intensity: typeof values?.intensity === 'number' ? values.intensity : undefined,

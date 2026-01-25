@@ -9,6 +9,7 @@ import { useAuth } from '@/app/_components/AuthProvider'
 
 type Post = {
   id: string
+  user_id: string
   content?: string
   post_type: 'photo' | 'video' | 'thread' | 'text'
   media_urls?: string[]

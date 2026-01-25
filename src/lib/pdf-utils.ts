@@ -24,10 +24,10 @@ export function downloadDietPDF(
   let yPos = 20
 
   // GymRatIA Brand Colors
-  const gymratiaRed = [255, 45, 45]
-  const darkBg = [20, 22, 27] // #14161B
-  const lightText = [248, 250, 252] // #F8FAFC
-  const grayText = [167, 175, 190] // #A7AFBE
+  const gymratiaRed: [number, number, number] = [255, 45, 45]
+  const darkBg: [number, number, number] = [20, 22, 27] // #14161B
+  const lightText: [number, number, number] = [248, 250, 252] // #F8FAFC
+  const grayText: [number, number, number] = [167, 175, 190] // #A7AFBE
 
   // Header with background
   doc.setFillColor(...darkBg)
@@ -35,22 +35,22 @@ export function downloadDietPDF(
   
   // GymRatIA Logo/Title
   doc.setFontSize(22)
-  doc.setFont(undefined, 'bold')
+  doc.setFont('helvetica', 'bold')
   doc.setTextColor(...gymratiaRed)
   doc.text('GymRatIA', 20, 18)
   
   // Title
   doc.setFontSize(16)
-  doc.setFont(undefined, 'bold')
+  doc.setFont('helvetica', 'bold')
   doc.setTextColor(...lightText)
-  const splitTitle = doc.splitTextToSize(title, 170)
+  const splitTitle = doc.splitTextToSize(title ?? '', 170)
   doc.text(splitTitle, 20, 30)
   yPos = 30 + (splitTitle.length * 6) + 5
 
   // Description
   if (description) {
     doc.setFontSize(10)
-    doc.setFont(undefined, 'normal')
+    doc.setFont('helvetica', 'normal')
     doc.setTextColor(...grayText)
     const splitDesc = doc.splitTextToSize(description, 170)
     doc.text(splitDesc, 20, yPos)
@@ -121,7 +121,7 @@ export function downloadDietPDF(
     doc.roundedRect(15, yPos - 6, 175, 10, 3, 3, 'F')
     
     doc.setFontSize(14)
-    doc.setFont(undefined, 'bold')
+    doc.setFont('helvetica', 'bold')
     doc.setTextColor(34, 197, 94) // Green
     doc.text('✓ Alimentos Permitidos', 20, yPos + 2)
     yPos += 15
@@ -142,13 +142,13 @@ export function downloadDietPDF(
       doc.roundedRect(20, yPos - 4, 170, 7, 2, 2, 'F')
       
       doc.setFontSize(11)
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(0, 0, 0) // Black
       doc.text(normalizeCategoryName(category), 23, yPos + 1)
       yPos += 10
 
       doc.setFontSize(9.5)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(50, 50, 50) // Dark gray for better readability
       normalizedFoods.forEach((food, idx) => {
         if (yPos > 270) {
@@ -184,7 +184,7 @@ export function downloadDietPDF(
     doc.roundedRect(15, yPos - 6, 175, 10, 3, 3, 'F')
     
     doc.setFontSize(14)
-    doc.setFont(undefined, 'bold')
+    doc.setFont('helvetica', 'bold')
     doc.setTextColor(251, 191, 36) // Yellow
     doc.text('⚠ Alimentos a Controlar', 20, yPos + 2)
     yPos += 15
@@ -205,13 +205,13 @@ export function downloadDietPDF(
       doc.roundedRect(20, yPos - 4, 170, 7, 2, 2, 'F')
       
       doc.setFontSize(11)
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(0, 0, 0) // Black
       doc.text(normalizeCategoryName(category), 23, yPos + 1)
       yPos += 10
 
       doc.setFontSize(9.5)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(50, 50, 50) // Dark gray for better readability
       normalizedFoods.forEach((food) => {
         if (yPos > 270) {
@@ -247,7 +247,7 @@ export function downloadDietPDF(
     doc.roundedRect(15, yPos - 6, 175, 10, 3, 3, 'F')
     
     doc.setFontSize(14)
-    doc.setFont(undefined, 'bold')
+    doc.setFont('helvetica', 'bold')
     doc.setTextColor(239, 68, 68) // Red
     doc.text('✗ Alimentos Prohibidos', 20, yPos + 2)
     yPos += 15
@@ -268,13 +268,13 @@ export function downloadDietPDF(
       doc.roundedRect(20, yPos - 4, 170, 7, 2, 2, 'F')
       
       doc.setFontSize(11)
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(0, 0, 0) // Black
       doc.text(normalizeCategoryName(category), 23, yPos + 1)
       yPos += 10
 
       doc.setFontSize(9.5)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(50, 50, 50) // Dark gray for better readability
       normalizedFoods.forEach((food) => {
         if (yPos > 270) {
@@ -306,11 +306,11 @@ export function downloadDietPDF(
     }
     
     // Section header with background
-    doc.setFillColor(...gymratiaRed, 15) // Red with low opacity
+    doc.setFillColor(gymratiaRed[0], gymratiaRed[1], gymratiaRed[2], 15) // Red with low opacity
     doc.roundedRect(15, yPos - 6, 175, 10, 3, 3, 'F')
     
     doc.setFontSize(14)
-    doc.setFont(undefined, 'bold')
+    doc.setFont('helvetica', 'bold')
     doc.setTextColor(...gymratiaRed)
     doc.text('📋 Organización Diaria', 20, yPos + 2)
     yPos += 15
@@ -318,50 +318,50 @@ export function downloadDietPDF(
     doc.setFontSize(10)
     doc.setTextColor(0, 0, 0) // Black for better readability
     if (dailyOrganization.morning) {
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(30, 30, 30) // Dark gray
       doc.text('🌅 Mañana:', 20, yPos)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(50, 50, 50) // Dark gray
       const text = doc.splitTextToSize(dailyOrganization.morning, 165)
       doc.text(text, 25, yPos)
       yPos += text.length * 4.5 + 6
     }
     if (dailyOrganization.pre_workout) {
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(30, 30, 30)
       doc.text('💪 Pre-entrenamiento:', 20, yPos)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(50, 50, 50)
       const text = doc.splitTextToSize(dailyOrganization.pre_workout, 165)
       doc.text(text, 25, yPos)
       yPos += text.length * 4.5 + 6
     }
     if (dailyOrganization.post_workout) {
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(30, 30, 30)
       doc.text('🔥 Post-entrenamiento:', 20, yPos)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(50, 50, 50)
       const text = doc.splitTextToSize(dailyOrganization.post_workout, 165)
       doc.text(text, 25, yPos)
       yPos += text.length * 4.5 + 6
     }
     if (dailyOrganization.evening) {
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(30, 30, 30)
       doc.text('🌙 Noche:', 20, yPos)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(50, 50, 50)
       const text = doc.splitTextToSize(dailyOrganization.evening, 165)
       doc.text(text, 25, yPos)
       yPos += text.length * 4.5 + 6
     }
     if (dailyOrganization.general_guidelines) {
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(30, 30, 30)
       doc.text('📋 Guías Generales:', 20, yPos)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(50, 50, 50)
       const text = doc.splitTextToSize(dailyOrganization.general_guidelines, 165)
       doc.text(text, 25, yPos)
@@ -378,11 +378,11 @@ export function downloadDietPDF(
     }
     
     // Section header with background
-    doc.setFillColor(...gymratiaRed, 15) // Red with low opacity
+    doc.setFillColor(gymratiaRed[0], gymratiaRed[1], gymratiaRed[2], 15) // Red with low opacity
     doc.roundedRect(15, yPos - 6, 175, 10, 3, 3, 'F')
     
     doc.setFontSize(14)
-    doc.setFont(undefined, 'bold')
+    doc.setFont('helvetica', 'bold')
     doc.setTextColor(...gymratiaRed)
     doc.text('💡 Recomendaciones', 20, yPos + 2)
     yPos += 15
@@ -390,21 +390,21 @@ export function downloadDietPDF(
     doc.setFontSize(10)
     doc.setTextColor(0, 0, 0) // Black for better readability
     if (recommendations.water) {
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(30, 30, 30) // Dark gray
       doc.text('💧 Agua:', 20, yPos)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(50, 50, 50) // Dark gray
       const text = doc.splitTextToSize(recommendations.water, 165)
       doc.text(text, 25, yPos)
       yPos += text.length * 4.5 + 6
     }
     if (recommendations.supplements && recommendations.supplements.length > 0) {
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(30, 30, 30)
       doc.text('💊 Suplementos:', 20, yPos)
       yPos += 6
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(50, 50, 50)
       recommendations.supplements.forEach((supp: string) => {
         if (yPos > 270) {
@@ -420,21 +420,21 @@ export function downloadDietPDF(
       yPos += 3
     }
     if (recommendations.timing) {
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(30, 30, 30)
       doc.text('⏰ Timing:', 20, yPos)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(50, 50, 50)
       const text = doc.splitTextToSize(recommendations.timing, 165)
       doc.text(text, 25, yPos)
       yPos += text.length * 4.5 + 6
     }
     if (recommendations.other && recommendations.other.length > 0) {
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(30, 30, 30)
       doc.text('📌 Otras recomendaciones:', 20, yPos)
       yPos += 6
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(50, 50, 50)
       recommendations.other.forEach((rec: string) => {
         if (yPos > 270) {
@@ -468,10 +468,10 @@ export function downloadMealPlanPDF(mealPlan: any[], weekStart: Date) {
   let yPos = 20
 
   // GymRatIA Brand Colors
-  const gymratiaRed = [255, 45, 45]
-  const darkBg = [20, 22, 27] // #14161B
-  const lightText = [248, 250, 252] // #F8FAFC
-  const grayText = [167, 175, 190] // #A7AFBE
+  const gymratiaRed: [number, number, number] = [255, 45, 45]
+  const darkBg: [number, number, number] = [20, 22, 27] // #14161B
+  const lightText: [number, number, number] = [248, 250, 252] // #F8FAFC
+  const grayText: [number, number, number] = [167, 175, 190] // #A7AFBE
 
   // Header with background
   doc.setFillColor(...darkBg)
@@ -479,7 +479,7 @@ export function downloadMealPlanPDF(mealPlan: any[], weekStart: Date) {
   
   // GymRatIA Logo/Title
   doc.setFontSize(24)
-  doc.setFont(undefined, 'bold')
+  doc.setFont('helvetica', 'bold')
   doc.setTextColor(...gymratiaRed)
   doc.text('GymRatIA', 20, 15)
   
@@ -525,11 +525,11 @@ export function downloadMealPlanPDF(mealPlan: any[], weekStart: Date) {
       yPos = 20
     }
     
-    doc.setFillColor(...gymratiaRed, 15) // Red with low opacity
+    doc.setFillColor(gymratiaRed[0], gymratiaRed[1], gymratiaRed[2], 15) // Red with low opacity
     doc.roundedRect(15, yPos - 6, 175, 10, 3, 3, 'F')
     
     doc.setFontSize(13)
-    doc.setFont(undefined, 'bold')
+    doc.setFont('helvetica', 'bold')
     doc.setTextColor(...gymratiaRed)
     const dayName = day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
     doc.text(dayName, 20, yPos + 2)
@@ -537,7 +537,7 @@ export function downloadMealPlanPDF(mealPlan: any[], weekStart: Date) {
 
     if (dayPlan?.workoutTime) {
       doc.setFontSize(9.5)
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(30, 30, 30)
       doc.text(`💪 Entrenamiento: ${dayPlan.workoutTime}`, 20, yPos)
       yPos += 7
@@ -560,12 +560,12 @@ export function downloadMealPlanPDF(mealPlan: any[], weekStart: Date) {
         doc.setFillColor(245, 245, 245) // Very light gray
         doc.roundedRect(20, yPos - 3, 170, 6, 2, 2, 'F')
         
-        doc.setFont(undefined, 'bold')
+        doc.setFont('helvetica', 'bold')
         doc.setTextColor(30, 30, 30) // Dark gray
         doc.text(`🍽 ${meal.name} (${meal.time})`, 23, yPos + 1)
         yPos += 9
 
-        doc.setFont(undefined, 'normal')
+        doc.setFont('helvetica', 'normal')
         doc.setTextColor(50, 50, 50) // Dark gray
         meal.foods.forEach((food: any) => {
           if (yPos > 270) {
@@ -574,7 +574,7 @@ export function downloadMealPlanPDF(mealPlan: any[], weekStart: Date) {
           }
           
           // Bullet point (smaller)
-          doc.setFillColor(...gymratiaRed)
+          doc.setFillColor(gymratiaRed[0], gymratiaRed[1], gymratiaRed[2])
           doc.circle(25, yPos - 0.5, 0.8, 'F')
           
           const foodText = `${food.name} - ${food.quantity}${food.unit}${food.calories ? ` (${food.calories} kcal)` : ''}`
@@ -599,7 +599,7 @@ export function downloadMealPlanPDF(mealPlan: any[], weekStart: Date) {
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
     doc.setFontSize(8)
-    doc.setTextColor(...grayText)
+    doc.setTextColor(grayText[0], grayText[1], grayText[2])
     doc.text(`GymRatIA - Página ${i} de ${pageCount}`, 105, 287, { align: 'center' })
   }
 

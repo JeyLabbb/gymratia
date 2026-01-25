@@ -76,7 +76,7 @@ export default function ChatsPage() {
     return null
   }
 
-  const getTrainerChat = (slug: 'edu' | 'carolina') => {
+  const getTrainerChat = (slug: 'edu' | 'carolina' | 'jey') => {
     return chats.find((c) => c.trainer_slug === slug)
   }
 

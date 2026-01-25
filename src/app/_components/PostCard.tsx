@@ -71,14 +71,12 @@ export default function PostCard({
   const [replyText, setReplyText] = useState('')
 
   // Obtener token de sesión para las peticiones
-  const getAuthHeaders = async () => {
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
     if (!user) return {}
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
-        return {
-          'Authorization': `Bearer ${session.access_token}`
-        }
+        return { Authorization: `Bearer ${session.access_token}` }
       }
     } catch {}
     return {}
@@ -125,7 +123,7 @@ export default function PostCard({
     try {
       const headers = await getAuthHeaders()
       const res = await fetch(`/api/social/interactions?postId=${post.id}`, {
-        headers
+        headers: Object.keys(headers).length ? headers : undefined
       })
       if (!res.ok) {
         console.error('Error loading comments:', res.status)
@@ -169,9 +167,9 @@ export default function PostCard({
       const headers = await getAuthHeaders()
       const res = await fetch(
         `/api/social/interactions?action=${newLiked ? 'like' : 'unlike'}&postId=${post.id}`,
-        { 
+        {
           method: 'POST',
-          headers
+          headers: Object.keys(headers).length ? headers : undefined
         }
       )
       if (!res.ok) {
@@ -221,7 +219,7 @@ export default function PostCard({
       const headers = await getAuthHeaders()
       const res = await fetch(`/api/social/interactions?action=share&postId=${post.id}`, {
         method: 'POST',
-        headers
+        headers: Object.keys(headers).length ? headers : undefined
       })
       if (!res.ok) {
         setShared(!newShared)
@@ -347,13 +345,12 @@ export default function PostCard({
 
     setPostingComment(true)
     try {
-      const headers = await getAuthHeaders()
+      const auth = await getAuthHeaders()
+      const putHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (auth.Authorization) putHeaders.Authorization = auth.Authorization
       const res = await fetch('/api/social/interactions', {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...headers
-        },
+        headers: putHeaders,
         body: JSON.stringify({
           postId: post.id,
           content,
@@ -606,21 +603,21 @@ export default function PostCard({
           ) : (
             <div className={cn(
               "w-full h-full grid gap-1",
-              post.media_urls.length === 1 ? "grid-cols-1" : post.media_urls.length === 2 ? "grid-cols-2" : "grid-cols-2"
+              (post.media_urls?.length ?? 0) === 1 ? "grid-cols-1" : (post.media_urls?.length ?? 0) === 2 ? "grid-cols-2" : "grid-cols-2"
             )}>
-              {post.media_urls.slice(0, 4).map((url, idx) => (
+              {(post.media_urls ?? []).slice(0, 4).map((url, idx) => (
                 <div 
                   key={idx} 
                   className={cn(
                     "relative w-full h-full flex items-center justify-center bg-[#0A0A0B] overflow-hidden",
-                    post.media_urls.length === 1 ? "min-h-[300px] max-h-[500px]" : "aspect-square"
+                    (post.media_urls?.length ?? 0) === 1 ? "min-h-[300px] max-h-[500px]" : "aspect-square"
                   )}
                 >
                   <SafeImage
                     src={url}
                     alt={`Post media ${idx + 1}`}
                     className={cn(
-                      post.media_urls.length === 1 
+                      (post.media_urls?.length ?? 0) === 1 
                         ? "max-w-full max-h-full w-auto h-auto object-contain mx-auto my-auto" 
                         : "w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     )}

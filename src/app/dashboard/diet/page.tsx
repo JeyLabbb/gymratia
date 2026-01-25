@@ -59,7 +59,7 @@ export default function DietPage() {
   const [mealPlanners, setMealPlanners] = useState<MealPlanner[]>([])
   const [selectedTrainer, setSelectedTrainer] = useState<'edu' | 'carolina' | null>(null)
   const [activeTrainerSlug, setActiveTrainerSlug] = useState<'edu' | 'carolina' | null>(null)
-  const [activeTrainers, setActiveTrainers] = useState<Array<'edu' | 'carolina'>>([])
+  const [activeTrainers, setActiveTrainers] = useState<Array<'edu' | 'carolina' | 'jey'>>([])
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -161,7 +161,7 @@ export default function DietPage() {
         },
       })
 
-      const activeTrainersList: Array<'edu' | 'carolina'> = []
+      const activeTrainersList: Array<'edu' | 'carolina' | 'jey'> = []
       if (chatsResponse.ok) {
         const chatsData = await chatsResponse.json()
         const chats = chatsData.chats || []
@@ -320,7 +320,7 @@ export default function DietPage() {
                 {activeTrainers.length > 0 ? (
                   <div className={`grid ${activeTrainers.length === 1 ? 'grid-cols-1 max-w-xs mx-auto' : 'grid-cols-1 sm:grid-cols-2'} gap-3 sm:gap-4 mb-4 sm:mb-8`}>
                     {personas
-                      .filter(trainer => activeTrainers.includes(trainer.slug as 'edu' | 'carolina'))
+                      .filter(trainer => activeTrainers.includes(trainer.slug as 'edu' | 'carolina' | 'jey'))
                       .map((trainer) => (
                         <button
                           key={trainer.slug}

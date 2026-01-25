@@ -199,18 +199,18 @@ export function TrainersPreviewClient() {
               
               {/* Valoración y alumnos activos */}
               <div className="flex items-center justify-center gap-4 mb-4 text-xs">
-                {trainer.average_rating > 0 && trainer.total_ratings > 0 && (
+                {(trainer.average_rating ?? 0) > 0 && (trainer.total_ratings ?? 0) > 0 && (
                   <div className="flex items-center gap-1.5 text-[#FFD166]">
                     <Star className="w-4 h-4 fill-current" />
                     <span className="font-medium">
-                      {trainer.average_rating.toFixed(1)} ({trainer.total_ratings})
+                      {(trainer.average_rating ?? 0).toFixed(1)} ({(trainer.total_ratings ?? 0)})
                     </span>
                   </div>
                 )}
-                {trainer.active_students > 0 && (
+                {(trainer.active_students ?? 0) > 0 && (
                   <div className="flex items-center gap-1.5 text-[#FF2D2D]">
                     <Users className="w-4 h-4" />
-                    <span className="font-medium">{trainer.active_students} {trainer.active_students === 1 ? 'alumno' : 'alumnos'}</span>
+                    <span className="font-medium">{trainer.active_students ?? 0} {(trainer.active_students ?? 0) === 1 ? 'alumno' : 'alumnos'}</span>
                   </div>
                 )}
               </div>

@@ -81,7 +81,7 @@ export default function TrainerDashboardPage() {
           .eq('trainer_id', trainerData.id)
           .not('certificate_file_url', 'is', null)
         
-        hasCertificates = certificates && certificates.length > 0
+        hasCertificates = !!(certificates && certificates.length > 0)
         trainerData.hasCertificates = hasCertificates
       }
 
