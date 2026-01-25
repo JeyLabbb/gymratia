@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/_components/AuthProvider'
 import { supabase } from '@/lib/supabase'
@@ -8,9 +8,14 @@ import Link from 'next/link'
 import { User, Dumbbell, ArrowRight } from 'lucide-react'
 
 export default function ModeSelectPage() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
   const [selectedMode, setSelectedMode] = useState<'student' | 'trainer' | null>(null)
+
+  useEffect(() => {
+    if (loading) return
+    if (!user) router.replace('/auth/login')
+  }, [user, loading, router])
 
   const handleModeSelect = async (mode: 'student' | 'trainer') => {
     setSelectedMode(mode)
@@ -59,10 +64,7 @@ export default function ModeSelectPage() {
     }
   }
 
-  if (!user) {
-    router.push('/auth/login')
-    return null
-  }
+  if (loading || !user) return null
 
   return (
     <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center px-4">
