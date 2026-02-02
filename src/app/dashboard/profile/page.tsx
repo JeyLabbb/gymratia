@@ -14,7 +14,8 @@ import {
   Edit2,
   X,
   Plus,
-  Calendar
+  Calendar,
+  Trophy
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AddProgressModal } from './AddProgressModal'
@@ -36,6 +37,7 @@ type UserProfile = {
   email?: string
   height_cm?: number
   weight_kg?: number
+  target_weight_kg?: number
   goal?: string
   sex?: string
   created_at?: string
@@ -73,6 +75,7 @@ export default function ProfilePage() {
     preferred_name: '',
     height_cm: '',
     weight_kg: '',
+    target_weight_kg: '',
     goal: '',
     sex: ''
   })
@@ -86,21 +89,25 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       // Cargar datos guardados de localStorage si existen
-      const savedFormData = localStorage.getItem('profile-edit-form')
-      if (savedFormData) {
-        try {
-          const parsed = JSON.parse(savedFormData)
-          setFormData(parsed)
-        } catch (e) {
-          console.error('Error cargando datos guardados:', e)
+      if (typeof window !== 'undefined') {
+        const savedFormData = localStorage.getItem('profile-edit-form')
+        if (savedFormData) {
+          try {
+            const parsed = JSON.parse(savedFormData)
+            setFormData(parsed)
+          } catch (e) {
+            console.error('Error cargando datos guardados:', e)
+          }
         }
       }
       
       loadProfile()
       loadProgress()
       loadPosts()
+    } else if (!authLoading) {
+      setLoading(false)
     }
-  }, [user])
+  }, [user, authLoading])
   
   // Guardar formulario en localStorage cuando cambia
   useEffect(() => {
@@ -148,6 +155,7 @@ export default function ProfilePage() {
           preferred_name: profileData.preferred_name || '',
           height_cm: profileData.height_cm?.toString() || '',
           weight_kg: profileData.weight_kg?.toString() || '',
+          target_weight_kg: profileData.target_weight_kg?.toString() || '',
           goal: profileData.goal || '',
           sex: profileData.sex || ''
         })
@@ -216,6 +224,7 @@ export default function ProfilePage() {
           preferred_name: formData.preferred_name,
           height_cm: formData.height_cm ? parseInt(formData.height_cm) : null,
           weight_kg: formData.weight_kg ? parseFloat(formData.weight_kg) : null,
+          target_weight_kg: formData.target_weight_kg ? parseFloat(formData.target_weight_kg) : null,
           goal: formData.goal,
           sex: formData.sex
         }),
@@ -397,25 +406,16 @@ export default function ProfilePage() {
     <DashboardLayout activeSection="profile">
       <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-8">
         <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4 sm:mb-8">
-            <h2 className="font-heading text-xl sm:text-3xl font-bold text-[#F8FAFC]">Mi Perfil</h2>
-            {!editing && (
-              <button
-                onClick={() => setEditing(true)}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-[10px] sm:rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-xs sm:text-sm"
-              >
-                <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Editar</span>
-              </button>
-            )}
+          {/* Header - compact on mobile */}
+          <div className="flex items-center justify-between mb-3 sm:mb-8">
+            <h2 className="font-heading text-lg sm:text-3xl font-bold text-[#F8FAFC]">Mi Perfil</h2>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid lg:grid-cols-3 gap-3 sm:gap-6">
             {/* Left Column - Profile Info */}
             <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-              {/* Avatar Card */}
-              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-4 sm:p-6">
+              {/* Avatar Card - compact on mobile */}
+              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-3 sm:p-6">
                 <div className="flex flex-col items-center">
                   <div className="relative mb-3 sm:mb-4">
                     {profile?.avatar_url ? (
@@ -446,26 +446,26 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Quick Stats */}
-              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
-                <h4 className="font-heading text-lg font-bold text-[#F8FAFC] mb-4">Estadísticas</h4>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-[#A7AFBE] mb-1">Peso actual</p>
-                    <p className="text-2xl font-heading font-bold text-[#FF2D2D]">
-                      {profile?.weight_kg ? `${profile.weight_kg} kg` : '--'}
+              {/* Quick Stats - mini-cards on mobile */}
+              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-3 sm:p-6">
+                <h4 className="font-heading text-sm sm:text-lg font-bold text-[#F8FAFC] mb-3 sm:mb-4">Estadísticas</h4>
+                <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-col sm:gap-4">
+                  <div className="p-2 sm:p-0 rounded-[8px] sm:rounded-none bg-[#1A1D24]/50 sm:bg-transparent">
+                    <p className="text-[10px] sm:text-sm text-[#A7AFBE] mb-0.5 sm:mb-1">Peso</p>
+                    <p className="text-base sm:text-2xl font-heading font-bold text-[#FF2D2D]">
+                      {profile?.weight_kg ? `${profile.weight_kg}` : '--'}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-[#A7AFBE] mb-1">Altura</p>
-                    <p className="text-2xl font-heading font-bold text-[#F8FAFC]">
-                      {profile?.height_cm ? `${profile.height_cm} cm` : '--'}
+                  <div className="p-2 sm:p-0 rounded-[8px] sm:rounded-none bg-[#1A1D24]/50 sm:bg-transparent">
+                    <p className="text-[10px] sm:text-sm text-[#A7AFBE] mb-0.5 sm:mb-1">Altura</p>
+                    <p className="text-base sm:text-2xl font-heading font-bold text-[#F8FAFC]">
+                      {profile?.height_cm ? `${profile.height_cm}` : '--'}
                     </p>
                   </div>
                   {profile?.height_cm && profile?.weight_kg && (
-                    <div>
-                      <p className="text-sm text-[#A7AFBE] mb-1">IMC</p>
-                      <p className="text-2xl font-heading font-bold text-[#F8FAFC]">
+                    <div className="p-2 sm:p-0 rounded-[8px] sm:rounded-none bg-[#1A1D24]/50 sm:bg-transparent">
+                      <p className="text-[10px] sm:text-sm text-[#A7AFBE] mb-0.5 sm:mb-1">IMC</p>
+                      <p className="text-base sm:text-2xl font-heading font-bold text-[#F8FAFC]">
                         {(profile.weight_kg / ((profile.height_cm / 100) ** 2)).toFixed(1)}
                       </p>
                     </div>
@@ -473,16 +473,16 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Mi Feed - Moved to left column */}
-              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-heading text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
-                    <ImageIcon className="w-5 h-5 text-[#FF2D2D]" />
+              {/* Mi Feed - compact on mobile */}
+              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-3 sm:p-6">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <h4 className="font-heading text-base sm:text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-[#FF2D2D]" />
                     Mi Feed
                   </h4>
                   <button
                     onClick={() => setShowCreatePostModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-sm"
+                    className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-[10px] sm:rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-xs sm:text-sm"
                   >
                     <Plus className="w-4 h-4" />
                     Publicar
@@ -518,10 +518,21 @@ export default function ProfilePage() {
             </div>
 
             {/* Right Column - Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Personal Info */}
-              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
-                <h4 className="font-heading text-lg font-bold text-[#F8FAFC] mb-4">Información Personal</h4>
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+              {/* Personal Info - Edit button next to section */}
+              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-heading text-base sm:text-lg font-bold text-[#F8FAFC]">Información Personal</h4>
+                  {!editing && (
+                    <button
+                      onClick={() => setEditing(true)}
+                      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 rounded-[10px] sm:rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-xs sm:text-sm"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      Editar
+                    </button>
+                  )}
+                </div>
                 {editing ? (
                   <div className="space-y-4">
                     <div>
@@ -546,7 +557,7 @@ export default function ProfilePage() {
                         placeholder="Ej: Juan, María..."
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm text-[#A7AFBE] mb-2">Altura (cm)</label>
                         <input
@@ -566,6 +577,17 @@ export default function ProfilePage() {
                           onChange={(e) => setFormData({ ...formData, weight_kg: e.target.value })}
                           className="w-full px-4 py-3 rounded-[12px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#FF2D2D]"
                           placeholder="75.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-[#A7AFBE] mb-2">Peso objetivo (kg)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={formData.target_weight_kg}
+                          onChange={(e) => setFormData({ ...formData, target_weight_kg: e.target.value })}
+                          className="w-full px-4 py-3 rounded-[12px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#FF2D2D]"
+                          placeholder="Ej: 70"
                         />
                       </div>
                     </div>
@@ -613,8 +635,8 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
                         <p className="text-sm text-[#A7AFBE] mb-1">Nombre completo</p>
                         <p className="text-[#F8FAFC]">{profile?.full_name || '--'}</p>
@@ -630,6 +652,10 @@ export default function ProfilePage() {
                       <div>
                         <p className="text-sm text-[#A7AFBE] mb-1">Peso</p>
                         <p className="text-[#F8FAFC]">{profile?.weight_kg ? `${profile.weight_kg} kg` : '--'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-[#A7AFBE] mb-1">Peso objetivo</p>
+                        <p className="text-[#F8FAFC]">{profile?.target_weight_kg ? `${profile.target_weight_kg} kg` : '--'}</p>
                       </div>
                       <div>
                         <p className="text-sm text-[#A7AFBE] mb-1">Sexo</p>
@@ -649,15 +675,15 @@ export default function ProfilePage() {
               </div>
 
               {/* Progress Photos */}
-              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-heading text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
-                    <ImageIcon className="w-5 h-5 text-[#FF2D2D]" />
-                    Fotos de Progreso
+              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <h4 className="font-heading text-base sm:text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-[#FF2D2D]" />
+                    Fotos
                   </h4>
                   <button
                     onClick={() => setShowPhotoUpload(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-sm"
+                    className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-[10px] sm:rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-xs sm:text-sm"
                   >
                     <Plus className="w-4 h-4" />
                     Subir foto
@@ -690,15 +716,16 @@ export default function ProfilePage() {
               </div>
 
               {/* Progress Tracking */}
-              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-heading text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-[#FF2D2D]" />
-                    Seguimiento de Progreso
+              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <h4 className="font-heading text-base sm:text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-[#FF2D2D]" />
+                    <span className="hidden sm:inline">Seguimiento de Progreso</span>
+                    <span className="sm:hidden">Progreso</span>
                   </h4>
                   <button
                     onClick={() => setShowProgressModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-sm"
+                    className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-[10px] sm:rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-xs sm:text-sm"
                   >
                     <Plus className="w-4 h-4" />
                     Añadir registro
@@ -706,10 +733,34 @@ export default function ProfilePage() {
                 </div>
                 {progressEntries.length > 0 ? (
                   <div className="space-y-4">
+                    {/* Target reached congratulation */}
+                    {profile?.target_weight_kg != null && profile.target_weight_kg > 0 && (() => {
+                      const weights = progressEntries.filter(e => e.weight_kg).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      const latestWeight = weights[0]?.weight_kg
+                      const hasReached = latestWeight != null && Math.abs(latestWeight - profile.target_weight_kg) <= 0.5
+                      return hasReached ? (
+                        <div className="p-4 rounded-[16px] bg-gradient-to-r from-[#22C55E]/20 to-[#16A34A]/10 border-2 border-[#22C55E]/50 flex items-center gap-4">
+                          <div className="p-3 rounded-[12px] bg-[#22C55E]/30">
+                            <Trophy className="w-8 h-8 text-[#22C55E]" />
+                          </div>
+                          <div>
+                            <h4 className="font-heading text-lg font-bold text-[#F8FAFC]">
+                              ¡Objetivo alcanzado! 🎉
+                            </h4>
+                            <p className="text-sm text-[#A7AFBE]">
+                              Has llegado a tu peso objetivo de {profile.target_weight_kg} kg. ¡Enhorabuena por tu constancia!
+                            </p>
+                          </div>
+                        </div>
+                      ) : null
+                    })()}
                     {/* Weight Progress Chart */}
                     <div className="bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] rounded-[12px] p-4">
                       <h5 className="text-sm font-semibold text-[#F8FAFC] mb-4">Evolución del Peso</h5>
-                      <WeightProgressChart entries={progressEntries.filter(e => e.weight_kg)} />
+                      <WeightProgressChart 
+                        entries={progressEntries.filter(e => e.weight_kg)} 
+                        targetWeightKg={profile?.target_weight_kg}
+                      />
                     </div>
                     
                     {/* Recent Entries */}

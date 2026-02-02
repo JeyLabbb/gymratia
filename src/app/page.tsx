@@ -109,7 +109,7 @@ function Hero() {
   return (
     <section className="relative min-h-[100vh] md:min-h-[95vh] flex items-center overflow-hidden bg-black">
       <div className="absolute inset-0 z-0">
-        <HeroBackgroundVideo src="/videos/GymRatiaBueno.mp4" />
+        <HeroBackgroundVideo src="/videos/GymRatiaBueno.mp4" mobileSrc="/videos/videomovil.mp4" />
         <div className="absolute inset-0 bg-black/60 pointer-events-none" />
         {/* Bottom fade so video blends into page */}
         <div className="absolute bottom-0 left-0 right-0 h-48 md:h-64 bg-gradient-to-b from-transparent to-[#0A0A0B] pointer-events-none" />
@@ -414,7 +414,7 @@ function TrainerHero() {
   return (
     <section className="relative min-h-[100vh] md:min-h-[95vh] flex items-center overflow-hidden bg-black">
       <div className="absolute inset-0 z-0">
-        <HeroBackgroundVideo src="/videos/GymRatiaBueno.mp4" />
+        <HeroBackgroundVideo src="/videos/GymRatiaBueno.mp4" mobileSrc="/videos/videomovil.mp4" />
         <div className="absolute inset-0 bg-black/60 pointer-events-none" />
         <div className="absolute bottom-0 left-0 right-0 h-48 md:h-64 bg-gradient-to-b from-transparent to-[#0A0A0B] pointer-events-none" />
       </div>
@@ -577,6 +577,7 @@ export default function Home() {
 
   // Marcar como montado en el cliente
   useEffect(() => {
+    console.log('[Home] mounted=true')
     setMounted(true)
   }, [])
 
@@ -644,8 +645,9 @@ export default function Home() {
     }
   }
 
-  // Mostrar loading mientras auth carga o mientras se monta
+  console.log('[Home] render:', { authLoading, mounted, hasUser: !!user })
   if (authLoading || !mounted) {
+    console.log('[Home] -> LoadingScreen')
     return <LoadingScreen />
   }
 

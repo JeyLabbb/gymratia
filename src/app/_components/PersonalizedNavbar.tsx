@@ -6,7 +6,7 @@ import { useAuth } from './AuthProvider'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { StartButton } from './StartButton'
-import { User, GraduationCap, Compass, Bell, Settings, LogOut, ChevronDown } from 'lucide-react'
+import { User, GraduationCap, Compass, Bell, Settings, LogOut, ChevronDown, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MessagesPanel } from './MessagesPanel'
 import { ToggleTutorial } from './ToggleTutorial'
@@ -23,6 +23,7 @@ export function PersonalizedNavbar() {
   const [showMessages, setShowMessages] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [userMode, setUserMode] = useState<'student' | 'trainer'>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem('user_mode') as 'student' | 'trainer') || 'student'
@@ -194,8 +195,8 @@ export function PersonalizedNavbar() {
   const displayName = userName ? userName.split(' ')[0] : null
 
   return (
-    <nav className="sticky top-0 z-50 h-[72px] border-b border-[rgba(255,255,255,0.08)] bg-[#0A0A0B]/80 backdrop-blur-sm">
-      <div className="mx-auto max-w-[1200px] px-5 md:px-8 flex items-center justify-between h-full">
+    <nav className="sticky top-0 z-50 min-h-[56px] sm:h-[72px] border-b border-[rgba(255,255,255,0.08)] bg-[#0A0A0B]/80 backdrop-blur-sm">
+      <div className="mx-auto max-w-[1200px] px-4 sm:px-6 md:px-8 flex items-center justify-between h-full min-h-[56px]">
         <Link href="/" className="text-xl font-heading font-extrabold tracking-tight">
           GymRat<span className="text-[#FF2D2D]">IA</span>
         </Link>
@@ -217,7 +218,15 @@ export function PersonalizedNavbar() {
             </>
           )}
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <button
+            data-mobile-nav
+            onClick={() => setShowMobileMenu(true)}
+            className="md:hidden p-2.5 rounded-xl hover:bg-[#14161B] transition-colors touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0"
+            aria-label="Abrir menú"
+          >
+            <Menu className="w-6 h-6 text-[#F8FAFC]" />
+          </button>
           {user && displayName && (
             <span className="hidden md:block text-sm text-[#A7AFBE]">
               Hola, <span className="text-[#FF2D2D] font-medium">{displayName}</span>
@@ -243,7 +252,7 @@ export function PersonalizedNavbar() {
                     className="fixed inset-0 z-40" 
                     onClick={() => setShowUserMenu(false)}
                   />
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-lg z-50 overflow-hidden">
+                  <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-3 w-56 max-h-[min(70vh,400px)] overflow-y-auto bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[16px] shadow-xl z-[100]">
                     <button
                       onClick={() => {
                         setShowMessages(true)
@@ -360,10 +369,72 @@ export function PersonalizedNavbar() {
           isOpen={showMessages}
           onClose={() => {
             setShowMessages(false)
-            loadUnreadCount() // Recargar contador al cerrar
+            loadUnreadCount()
           }}
         />
       )}
+
+      {/* Menú móvil full-screen */}
+      {showMobileMenu && (
+        <div className="fixed inset-0 z-[60] md:hidden">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-md" onClick={() => setShowMobileMenu(false)} />
+          <div className="relative flex flex-col min-h-screen p-6 pt-16">
+            <button
+              onClick={() => setShowMobileMenu(false)}
+              className="absolute top-6 right-6 p-2 rounded-xl bg-[#14161B] text-[#A7AFBE] hover:text-[#F8FAFC]"
+              aria-label="Cerrar"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="flex flex-col gap-4">
+              <button
+                onClick={() => {
+                  handleModeChange(userMode === 'student' ? 'trainer' : 'student')
+                  setShowMobileMenu(false)
+                }}
+                className="flex items-center gap-4 p-5 rounded-2xl bg-[#14161B] border border-[rgba(255,255,255,0.08)] text-left hover:border-[#FF2D2D]/50 transition-all"
+              >
+                {userMode === 'student' ? (
+                  <GraduationCap className="w-8 h-8 text-[#FF2D2D]" />
+                ) : (
+                  <User className="w-8 h-8 text-[#FF2D2D]" />
+                )}
+                <div>
+                  <span className="block font-heading text-xl text-[#F8FAFC]">
+                    Cambiar a modo {userMode === 'student' ? 'Entrenador' : 'Alumno'}
+                  </span>
+                  <span className="text-sm text-[#7B8291]">Alternar entre entrenar y gestionar</span>
+                </div>
+              </button>
+              <Link
+                href="/explore"
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-4 p-5 rounded-2xl bg-[#14161B] border border-[rgba(255,255,255,0.08)] text-left hover:border-[#FF2D2D]/50 transition-all"
+              >
+                <Compass className="w-8 h-8 text-[#FF2D2D]" />
+                <div>
+                  <span className="block font-heading text-xl text-[#F8FAFC]">Explorar</span>
+                  <span className="text-sm text-[#7B8291]">Descubre entrenadores y contenido</span>
+                </div>
+              </Link>
+              {!user && (
+                <Link
+                  href="/trainers"
+                  onClick={() => setShowMobileMenu(false)}
+                  className="flex items-center gap-4 p-5 rounded-2xl bg-[#14161B] border border-[rgba(255,255,255,0.08)] text-left hover:border-[#FF2D2D]/50 transition-all"
+                >
+                  <GraduationCap className="w-8 h-8 text-[#A7AFBE]" />
+                  <div>
+                    <span className="block font-heading text-xl text-[#F8FAFC]">Entrenadores</span>
+                    <span className="text-sm text-[#7B8291]">Conoce a los entrenadores IA</span>
+                  </div>
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <ToggleTutorial />
     </nav>
   )

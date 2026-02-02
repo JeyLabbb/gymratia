@@ -110,10 +110,11 @@ export function MealPlannerView({ plannerData, onEdit, editable = false }: MealP
       {/* Meals */}
       <div className="space-y-4">
         {plannerData.meals.map((meal, mealIdx) => {
-          const mealCalories = meal.foods.reduce((sum, f) => sum + f.calories, 0)
-          const mealProtein = meal.foods.reduce((sum, f) => sum + f.protein, 0)
-          const mealCarbs = meal.foods.reduce((sum, f) => sum + f.carbs, 0)
-          const mealFats = meal.foods.reduce((sum, f) => sum + f.fats, 0)
+          const foods = meal?.foods != null && Array.isArray(meal.foods) ? meal.foods : []
+          const mealCalories = foods.reduce((sum, f) => sum + (f.calories || 0), 0)
+          const mealProtein = foods.reduce((sum, f) => sum + (f.protein || 0), 0)
+          const mealCarbs = foods.reduce((sum, f) => sum + (f.carbs || 0), 0)
+          const mealFats = foods.reduce((sum, f) => sum + (f.fats || 0), 0)
 
           return (
             <div
@@ -134,7 +135,7 @@ export function MealPlannerView({ plannerData, onEdit, editable = false }: MealP
                 </div>
               </div>
               <div className="space-y-2">
-                {meal.foods.map((food, foodIdx) => (
+                {foods.map((food, foodIdx) => (
                   <div
                     key={foodIdx}
                     className="flex items-center justify-between py-2 border-b border-[rgba(255,255,255,0.05)] last:border-0"

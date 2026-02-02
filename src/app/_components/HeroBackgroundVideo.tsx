@@ -4,35 +4,62 @@ import React, { useState, useEffect, useRef } from "react";
 
 type HeroBackgroundVideoProps = {
   src: string;
+  /** Video alternativo para móvil/vertical (portrait o viewport estrecho) */
+  mobileSrc?: string;
   className?: string;
 };
 
-export default function HeroBackgroundVideo({ src, className }: HeroBackgroundVideoProps) {
+function useMobileOrPortrait(): boolean {
+  const [isMobileOrPortrait, setIsMobileOrPortrait] = useState(false);
+
+  useEffect(() => {
+    const check = () => {
+      const narrow = window.matchMedia("(max-width: 767px)").matches;
+      const portrait = window.matchMedia("(orientation: portrait)").matches;
+      setIsMobileOrPortrait(narrow || portrait);
+    };
+
+    check();
+    const mqNarrow = window.matchMedia("(max-width: 767px)");
+    const mqPortrait = window.matchMedia("(orientation: portrait)");
+    const handler = () => check();
+    mqNarrow.addEventListener("change", handler);
+    mqPortrait.addEventListener("change", handler);
+    return () => {
+      mqNarrow.removeEventListener("change", handler);
+      mqPortrait.removeEventListener("change", handler);
+    };
+  }, []);
+
+  return isMobileOrPortrait;
+}
+
+export default function HeroBackgroundVideo({ src, mobileSrc, className }: HeroBackgroundVideoProps) {
   const ref = React.useRef<HTMLVideoElement | null>(null);
   const [shouldPlay, setShouldPlay] = useState(false);
   const [lastFrameSrc, setLastFrameSrc] = useState<string | null>(null);
   const hasInitialized = useRef(false);
+  const isMobileOrPortrait = useMobileOrPortrait();
+
+  const effectiveSrc = mobileSrc && isMobileOrPortrait ? mobileSrc : src;
 
   useEffect(() => {
-    // Verificar si el video ya se reprodujo en esta sesión
-    const videoKey = `video_played_${src}`;
+    setLastFrameSrc(null); // Evitar frame de otro video al cambiar src
+    const videoKey = `video_played_${effectiveSrc}`;
     const hasPlayed = sessionStorage.getItem(videoKey);
-    
+
     if (hasPlayed) {
-      // Si ya se reprodujo, solo mostrar el último frame
       const lastFrame = sessionStorage.getItem(`${videoKey}_frame`);
       if (lastFrame) {
         setLastFrameSrc(lastFrame);
       } else {
-        // Si no hay último frame guardado, cargar el video pero ir al final
         setShouldPlay(false);
       }
     } else {
-      // Primera vez, reproducir el video
       setShouldPlay(true);
     }
     hasInitialized.current = true;
-  }, [src]);
+  }, [effectiveSrc]);
 
   useEffect(() => {
     const video = ref.current;
@@ -56,7 +83,7 @@ export default function HeroBackgroundVideo({ src, className }: HeroBackgroundVi
               const frameDataUrl = canvas.toDataURL('image/jpeg', 0.95);
               
               // Guardar en sessionStorage
-              const videoKey = `video_played_${src}`;
+              const videoKey = `video_played_${effectiveSrc}`;
               sessionStorage.setItem(videoKey, 'true');
               sessionStorage.setItem(`${videoKey}_frame`, frameDataUrl);
               
@@ -118,7 +145,7 @@ export default function HeroBackgroundVideo({ src, className }: HeroBackgroundVi
       video.removeEventListener("canplay", handleCanPlay);
       video.removeEventListener("ended", handleEnded);
     };
-  }, [shouldPlay, src]); // Removido lastFrameSrc del array de dependencias
+  }, [shouldPlay, effectiveSrc]);
 
   // Si tenemos el último frame guardado, mostrar solo la imagen
   if (lastFrameSrc) {
@@ -137,7 +164,7 @@ export default function HeroBackgroundVideo({ src, className }: HeroBackgroundVi
   return (
     <video
       ref={ref}
-      src={src}
+      src={effectiveSrc}
       autoPlay={shouldPlay}
       muted
       playsInline

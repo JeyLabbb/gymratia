@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/_components/AuthProvider'
 import { supabase } from '@/lib/supabase'
@@ -12,19 +12,16 @@ import {
   TrendingUp, 
   Plus, 
   FileText, 
-  Award, 
   Settings, 
   ArrowRight,
   Target,
-  MessageCircle,
-  Zap,
   BarChart3,
   Star,
-  ArrowLeft,
-  Home,
-  Compass
+  Lightbulb,
+  Info
 } from 'lucide-react'
 import { LoadingScreen } from '@/app/_components/LoadingScreen'
+import { cn } from '@/lib/utils'
 import { CreatePostModal } from '@/app/_components/CreatePostModal'
 import { RequestPublicModal } from '@/app/_components/RequestPublicModal'
 import PostCard from '@/app/_components/PostCard'
@@ -161,161 +158,105 @@ export default function TrainerDashboardPage() {
   const displayName = trainer.trainer_name || trainer.full_name || user?.email?.split('@')[0] || 'Entrenador'
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B]">
-      {/* Navigation Bar */}
-      <div className="sticky top-0 z-40 bg-[#0A0A0B]/80 backdrop-blur-lg border-b border-[rgba(255,255,255,0.08)]">
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#A7AFBE] hover:text-[#F8FAFC] hover:border-[#FF2D2D]/50 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm font-medium">Volver</span>
-              </Link>
-              <Link
-                href="/"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-[#A7AFBE] hover:text-[#F8FAFC] transition-colors"
-              >
-                <Home className="w-4 h-4" />
-                <span className="text-sm font-medium">Inicio</span>
-              </Link>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/explore"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-[#A7AFBE] hover:text-[#3B82F6] transition-colors"
-              >
-                <Compass className="w-4 h-4" />
-                <span className="text-sm font-medium">Explorar</span>
-              </Link>
-              <Link
-                href="/trainers/settings"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#A7AFBE] hover:text-[#F8FAFC] hover:border-[#FF2D2D]/50 transition-colors"
-              >
-                <Settings className="w-4 h-4" />
-                <span className="text-sm font-medium">Configuración</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+    <>
+    <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
+        <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+          {/* Welcome - compacto */}
+          <p className="text-sm sm:text-base text-[#A7AFBE]">
+            Hola {displayName}, gestiona tu contenido y conecta con tus alumnos.
+          </p>
 
-      <div className="flex-1 overflow-y-auto px-6 py-8">
-        <div className="max-w-6xl mx-auto space-y-6">
-          {/* Welcome Header */}
-          <div className="bg-gradient-to-r from-[#FF2D2D]/10 to-[#FF2D2D]/5 border border-[#FF2D2D]/20 rounded-[22px] p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="font-heading text-3xl font-bold text-[#F8FAFC] mb-2">
-                  ¡Hola, {displayName}! 👋
-                </h1>
-                <p className="text-[#A7AFBE]">
-                  Gestiona tu contenido, conecta con tus alumnos y haz crecer tu marca personal.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid md:grid-cols-4 gap-6">
-            <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center group-hover:bg-[#FF2D2D]/30 transition-colors">
-                  <Users className="w-6 h-6 text-[#FF2D2D]" />
+          {/* Mini-cards métricas - 2 por fila */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+            <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[16px] p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center flex-shrink-0">
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[#FF2D2D]" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-2xl font-heading font-bold text-[#F8FAFC]">{stats.totalStudents}</p>
-                  <p className="text-sm text-[#A7AFBE]">Total Alumnos</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg sm:text-xl font-heading font-bold text-[#F8FAFC]">{stats.totalStudents}</p>
+                  <p className="text-[10px] sm:text-xs text-[#A7AFBE]">Alumnos</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#22C55E]/50 transition-all hover:shadow-[0_0_40px_rgba(34,197,94,0.15)] group">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-[#22C55E]/20 flex items-center justify-center group-hover:bg-[#22C55E]/30 transition-colors">
-                  <TrendingUp className="w-6 h-6 text-[#22C55E]" />
+            <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[16px] p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#22C55E]/20 flex items-center justify-center flex-shrink-0">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-[#22C55E]" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-2xl font-heading font-bold text-[#F8FAFC]">{stats.activeStudents}</p>
-                  <p className="text-sm text-[#A7AFBE]">Alumnos Activos</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#38BDF8]/50 transition-all hover:shadow-[0_0_40px_rgba(56,189,248,0.15)] group">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-[#38BDF8]/20 flex items-center justify-center group-hover:bg-[#38BDF8]/30 transition-colors">
-                  <Dumbbell className="w-6 h-6 text-[#38BDF8]" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-2xl font-heading font-bold text-[#F8FAFC]">{stats.totalWorkouts}</p>
-                  <p className="text-sm text-[#A7AFBE]">Entrenamientos</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg sm:text-xl font-heading font-bold text-[#F8FAFC]">{stats.activeStudents}</p>
+                  <p className="text-[10px] sm:text-xs text-[#A7AFBE]">Activos</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#FFB020]/50 transition-all hover:shadow-[0_0_40px_rgba(255,176,32,0.15)] group">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-[#FFB020]/20 flex items-center justify-center group-hover:bg-[#FFB020]/30 transition-colors">
-                  <UtensilsCrossed className="w-6 h-6 text-[#FFB020]" />
+            <Link href="/trainers/content/workouts" className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[16px] p-3 sm:p-4 hover:border-[#38BDF8]/50 transition-all group">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#38BDF8]/20 flex items-center justify-center flex-shrink-0">
+                  <Dumbbell className="w-4 h-4 sm:w-5 sm:h-5 text-[#38BDF8]" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-2xl font-heading font-bold text-[#F8FAFC]">{stats.totalDiets}</p>
-                  <p className="text-sm text-[#A7AFBE]">Planes de Dieta</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg sm:text-xl font-heading font-bold text-[#F8FAFC]">{stats.totalWorkouts}</p>
+                  <p className="text-[10px] sm:text-xs text-[#A7AFBE]">Entrenamientos</p>
                 </div>
               </div>
-            </div>
+            </Link>
+
+            <Link href="/trainers/content/diets" className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[16px] p-3 sm:p-4 hover:border-[#FFB020]/50 transition-all group">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#FFB020]/20 flex items-center justify-center flex-shrink-0">
+                  <UtensilsCrossed className="w-4 h-4 sm:w-5 sm:h-5 text-[#FFB020]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg sm:text-xl font-heading font-bold text-[#F8FAFC]">{stats.totalDiets}</p>
+                  <p className="text-[10px] sm:text-xs text-[#A7AFBE]">Dietas</p>
+                </div>
+              </div>
+            </Link>
           </div>
 
-          {/* Quick Actions */}
-          <div>
-            <h2 className="font-heading text-2xl font-bold text-[#F8FAFC] mb-6">Gestiona tu Contenido</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <Link
-                href="/trainers/content/workouts"
-                className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
-              >
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center group-hover:bg-[#FF2D2D]/30 transition-colors flex-shrink-0">
-                    <Dumbbell className="w-6 h-6 text-[#FF2D2D]" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-heading text-lg font-bold text-[#F8FAFC] mb-1">Entrenamientos</h3>
-                    <p className="text-sm text-[#A7AFBE] mb-4">
-                      Define tu metodología y alimenta a tu IA con tu estilo de entrenamiento único
-                    </p>
-                    <div className="flex items-center gap-2 text-sm text-[#FF2D2D] group-hover:gap-3 transition-all">
-                      <span>Gestionar entrenamientos</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </div>
-                  </div>
+          {/* CTAs principales - clicables, sin duplicar */}
+          <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
+            <Link href="/trainers/content/workouts" className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[16px] p-4 sm:p-5 hover:border-[#FF2D2D]/50 transition-all group">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center flex-shrink-0">
+                  <Dumbbell className="w-5 h-5 text-[#FF2D2D]" />
                 </div>
-              </Link>
+                <h3 className="font-heading font-bold text-[#F8FAFC]">Entrenamientos</h3>
+                <ArrowRight className="w-4 h-4 text-[#FF2D2D] ml-auto group-hover:translate-x-1 transition-transform" />
+              </div>
+              <p className="text-xs text-[#A7AFBE]">
+                Define tu metodología y alimenta tu IA con tu estilo único.
+              </p>
+            </Link>
 
-              <Link
-                href="/trainers/content/diets"
-                className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#22C55E]/50 transition-all hover:shadow-[0_0_40px_rgba(34,197,94,0.15)] group"
-              >
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-[#22C55E]/20 flex items-center justify-center group-hover:bg-[#22C55E]/30 transition-colors flex-shrink-0">
-                    <UtensilsCrossed className="w-6 h-6 text-[#22C55E]" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-heading text-lg font-bold text-[#F8FAFC] mb-1">Planes de Dieta</h3>
-                    <p className="text-sm text-[#A7AFBE] mb-4">
-                      Define tu enfoque nutricional y guía a tu entrenador virtual con tus principios
-                    </p>
-                    <div className="flex items-center gap-2 text-sm text-[#22C55E] group-hover:gap-3 transition-all">
-                      <span>Gestionar dietas</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </div>
-                  </div>
+            <Link href="/trainers/content/diets" className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[16px] p-4 sm:p-5 hover:border-[#22C55E]/50 transition-all group">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-[#22C55E]/20 flex items-center justify-center flex-shrink-0">
+                  <UtensilsCrossed className="w-5 h-5 text-[#22C55E]" />
                 </div>
-              </Link>
-            </div>
+                <h3 className="font-heading font-bold text-[#F8FAFC]">Planes de Dieta</h3>
+                <ArrowRight className="w-4 h-4 text-[#22C55E] ml-auto group-hover:translate-x-1 transition-transform" />
+              </div>
+              <p className="text-xs text-[#A7AFBE]">
+                Define tu enfoque nutricional y guía a tu entrenador virtual.
+              </p>
+            </Link>
           </div>
+
+          {/* Aviso IA - colapsable */}
+          <details className="group">
+            <summary className="flex items-center gap-2 p-3 rounded-[12px] bg-[#3B82F6]/10 border border-[#3B82F6]/30 cursor-pointer list-none text-sm text-[#A7AFBE] hover:text-[#F8FAFC]">
+              <Lightbulb className="w-4 h-4 text-[#3B82F6] flex-shrink-0" />
+              <span>Usa tu IA 1-2 días/semana para detectar errores antes de publicar</span>
+              <Info className="w-4 h-4 ml-auto text-[#7B8291] group-open:rotate-180 transition-transform" />
+            </summary>
+            <p className="mt-2 p-3 pl-9 text-xs text-[#A7AFBE]">
+              Usa tu propio entrenador virtual IA durante 1–2 días/semana para detectar errores, incoherencias o cosas con las que no estés de acuerdo y ajustarlo antes de publicarlo o enviarlo a alumnos.
+            </p>
+          </details>
 
           {/* Profile Section */}
           <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
@@ -357,15 +298,18 @@ export default function TrainerDashboardPage() {
                     <p className="text-xs text-[#A7AFBE]">Tu perfil es privado. Solo tú puedes acceder.</p>
                   </div>
                 </label>
-                <label className="flex items-start gap-3 p-3 rounded-[16px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] cursor-pointer hover:border-[#FF2D2D]/50 transition-colors">
+                <label className={cn(
+                  "flex items-start gap-3 p-3 rounded-[16px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] transition-colors",
+                  trainer.visibility_status === 'PENDING_REVIEW' ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:border-[#FF2D2D]/50"
+                )}>
                   <input
                     type="radio"
                     name="visibility"
                     value="REQUEST_ACCESS"
                     checked={trainer.visibility_status === 'REQUEST_ACCESS'}
+                    disabled={trainer.visibility_status === 'PENDING_REVIEW'}
                     onChange={() => {
-                      // Siempre mostrar modal de solicitud para REQUEST_ACCESS o PUBLIC
-                      setShowRequestPublicModal(true)
+                      if (trainer.visibility_status !== 'PENDING_REVIEW') setShowRequestPublicModal(true)
                     }}
                     className="mt-1"
                   />
@@ -374,15 +318,18 @@ export default function TrainerDashboardPage() {
                     <p className="text-xs text-[#A7AFBE]">Los alumnos pueden solicitarte acceso. Requiere completar solicitud.</p>
                   </div>
                 </label>
-                <label className="flex items-start gap-3 p-3 rounded-[16px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] cursor-pointer hover:border-[#FF2D2D]/50 transition-colors">
+                <label className={cn(
+                  "flex items-start gap-3 p-3 rounded-[16px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] transition-colors",
+                  trainer.visibility_status === 'PENDING_REVIEW' ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:border-[#FF2D2D]/50"
+                )}>
                   <input
                     type="radio"
                     name="visibility"
                     value="PUBLIC"
                     checked={trainer.visibility_status === 'PUBLIC'}
+                    disabled={trainer.visibility_status === 'PENDING_REVIEW'}
                     onChange={() => {
-                      // Siempre mostrar modal de solicitud para PUBLIC
-                      setShowRequestPublicModal(true)
+                      if (trainer.visibility_status !== 'PENDING_REVIEW') setShowRequestPublicModal(true)
                     }}
                     className="mt-1"
                   />
@@ -426,21 +373,26 @@ export default function TrainerDashboardPage() {
                   </button>
                   <button
                     onClick={() => setShowRequestPublicModal(true)}
-                    className="inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#FF2D2D] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#FF3D3D] transition-colors"
+                    className="inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#FF2D2D] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#FF3D3D] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Solicitar aparecer en público
                   </button>
                 </div>
               </>
             ) : trainer.visibility_status === 'PENDING_REVIEW' ? (
+              <>
               <div className="mb-4 p-4 rounded-[16px] bg-blue-500/10 border border-blue-500/20">
                 <p className="text-sm text-blue-300 mb-2">
                   <strong>Tu solicitud está pendiente de revisión.</strong>
                 </p>
                 <p className="text-xs text-blue-200/80">
-                  Recibirás una notificación cuando sea revisada.
+                  Recibirás una notificación cuando sea revisada. No puedes solicitar de nuevo hasta que se resuelva.
                 </p>
               </div>
+              <button disabled className="inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#5A6170] px-5 py-2.5 text-sm font-semibold text-[#A7AFBE] cursor-not-allowed opacity-60">
+                Solicitud pendiente
+              </button>
+              </>
             ) : trainer.visibility_status === 'PUBLIC' ? (
               <>
                 <p className="text-sm text-[#A7AFBE] mb-4">
@@ -547,66 +499,43 @@ export default function TrainerDashboardPage() {
             )}
           </div>
 
-          {/* Additional Quick Actions */}
+          {/* Herramientas - compacto, Configuración arriba */}
           <div>
-            <h2 className="font-heading text-2xl font-bold text-[#F8FAFC] mb-6">Herramientas</h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              <Link
-                href="/trainers/onboarding"
-                className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center group-hover:bg-[#FF2D2D]/30 transition-colors">
-                    <Target className="w-6 h-6 text-[#FF2D2D]" />
-                  </div>
-                  <div>
-                    <h3 className="font-heading text-lg font-bold text-[#F8FAFC]">Onboarding</h3>
-                    <p className="text-xs text-[#A7AFBE]">Configura tu IA</p>
-                  </div>
+            <h2 className="font-heading text-base sm:text-lg font-bold text-[#F8FAFC] mb-3">Herramientas</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Link href="/trainers/settings" className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] p-4 hover:border-[#FF2D2D]/50 transition-all group flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center flex-shrink-0">
+                  <Settings className="w-5 h-5 text-[#FF2D2D]" />
                 </div>
-                <div className="flex items-center gap-2 text-sm text-[#FF2D2D] group-hover:gap-3 transition-all">
-                  <span>Configurar</span>
-                  <ArrowRight className="w-4 h-4" />
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-heading font-bold text-[#F8FAFC] text-sm">Configuración</h3>
+                  <p className="text-[10px] text-[#A7AFBE]">Ajustes y preferencias</p>
                 </div>
+                <ArrowRight className="w-4 h-4 text-[#FF2D2D] flex-shrink-0" />
               </Link>
-
-              <Link
-                href="/trainers/settings"
-                className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center group-hover:bg-[#FF2D2D]/30 transition-colors">
-                    <Settings className="w-6 h-6 text-[#FF2D2D]" />
-                  </div>
-                  <div>
-                    <h3 className="font-heading text-lg font-bold text-[#F8FAFC]">Configuración</h3>
-                    <p className="text-xs text-[#A7AFBE]">Ajustes y preferencias</p>
-                  </div>
+              <Link href="/trainers/onboarding" className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] p-4 hover:border-[#FF2D2D]/50 transition-all group flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center flex-shrink-0">
+                  <Target className="w-5 h-5 text-[#FF2D2D]" />
                 </div>
-                <div className="flex items-center gap-2 text-sm text-[#FF2D2D] group-hover:gap-3 transition-all">
-                  <span>Ver ajustes</span>
-                  <ArrowRight className="w-4 h-4" />
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-heading font-bold text-[#F8FAFC] text-sm">Onboarding</h3>
+                  <p className="text-[10px] text-[#A7AFBE]">Configura tu IA</p>
                 </div>
+                <ArrowRight className="w-4 h-4 text-[#FF2D2D] flex-shrink-0" />
               </Link>
-
-              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center">
-                    <BarChart3 className="w-6 h-6 text-[#FF2D2D]" />
-                  </div>
-                  <div>
-                    <h3 className="font-heading text-lg font-bold text-[#F8FAFC]">Analíticas</h3>
-                    <p className="text-xs text-[#A7AFBE]">Próximamente</p>
-                  </div>
+              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] p-4 flex items-center gap-3 opacity-70">
+                <div className="w-10 h-10 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center flex-shrink-0">
+                  <BarChart3 className="w-5 h-5 text-[#FF2D2D]" />
                 </div>
-                <p className="text-xs text-[#7B8291]">Métricas detalladas de tus alumnos</p>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-heading font-bold text-[#F8FAFC] text-sm">Analíticas</h3>
+                  <p className="text-[10px] text-[#A7AFBE]">Próximamente</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Create Post Modal */}
       {trainer && (
         <>
           <CreatePostModal
@@ -635,7 +564,7 @@ export default function TrainerDashboardPage() {
           />
         </>
       )}
-    </div>
+    </>
   )
 }
 

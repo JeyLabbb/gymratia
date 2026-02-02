@@ -11,9 +11,10 @@ type ProgressEntry = {
 
 type WeightProgressChartProps = {
   entries: ProgressEntry[]
+  targetWeightKg?: number
 }
 
-export function WeightProgressChart({ entries }: WeightProgressChartProps) {
+export function WeightProgressChart({ entries, targetWeightKg }: WeightProgressChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; entry: ProgressEntry } | null>(null)
@@ -40,11 +41,28 @@ export function WeightProgressChart({ entries }: WeightProgressChartProps) {
     // Clear canvas
     ctx.clearRect(0, 0, width, height)
 
-    // Find min and max values
+    // Find min and max values (include target in range if set)
     const weights = sortedEntries.map(e => e.weight_kg)
-    const minWeight = Math.min(...weights) * 0.98
-    const maxWeight = Math.max(...weights) * 1.02
-    const weightRange = maxWeight - minWeight
+    const minWeight = Math.min(...weights, targetWeightKg ?? Infinity) * 0.98
+    const maxWeight = Math.max(...weights, targetWeightKg ?? -Infinity) * 1.02
+    const weightRange = Math.max(maxWeight - minWeight, 1)
+
+    // Draw target line (horizontal) if set
+    if (targetWeightKg != null && targetWeightKg > 0) {
+      const goalY = padding.top + chartHeight - ((targetWeightKg - minWeight) / weightRange) * chartHeight
+      ctx.strokeStyle = '#22C55E'
+      ctx.lineWidth = 2
+      ctx.setLineDash([6, 4])
+      ctx.beginPath()
+      ctx.moveTo(padding.left, goalY)
+      ctx.lineTo(width - padding.right, goalY)
+      ctx.stroke()
+      ctx.setLineDash([])
+      ctx.fillStyle = '#22C55E'
+      ctx.font = '11px Inter'
+      ctx.textAlign = 'right'
+      ctx.fillText(`Objetivo: ${targetWeightKg} kg`, width - padding.right - 4, goalY - 6)
+    }
 
     // Draw grid lines
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'
@@ -163,7 +181,7 @@ export function WeightProgressChart({ entries }: WeightProgressChartProps) {
     return () => {
       canvas.removeEventListener('mousemove', handleMouseMove)
     }
-  }, [entries])
+  }, [entries, targetWeightKg])
 
   if (entries.length === 0) {
     return (

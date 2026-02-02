@@ -36,6 +36,7 @@ export function ChatContentPanel({
   const [loadedMealPlan, setLoadedMealPlan] = useState<any[]>([])
   const [loadedPhotos, setLoadedPhotos] = useState<any[]>([])
   const [loadedWeightEntries, setLoadedWeightEntries] = useState<any[]>([])
+  const [loadedProfile, setLoadedProfile] = useState<{ target_weight_kg?: number } | null>(null)
   const [loadedWorkout, setLoadedWorkout] = useState<any>(null)
   const [workoutLoading, setWorkoutLoading] = useState(false)
 
@@ -101,28 +102,31 @@ export function ChatContentPanel({
 
       loadPhotos()
     } else if (isOpen && contentType === 'weight_graph' && user) {
-      // Load weight entries
-      const loadWeightEntries = async () => {
+      // Load weight entries and profile (for target weight)
+      const loadWeightData = async () => {
         try {
           const { data: { session } } = await supabase.auth.getSession()
           if (!session) return
 
-          const response = await fetch('/api/progress', {
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-            },
-          })
+          const [progressRes, profileRes] = await Promise.all([
+            fetch('/api/progress', { headers: { Authorization: `Bearer ${session.access_token}` } }),
+            fetch('/api/user/profile', { headers: { Authorization: `Bearer ${session.access_token}` } }),
+          ])
 
-          if (response.ok) {
-            const data = await response.json()
+          if (progressRes.ok) {
+            const data = await progressRes.json()
             setLoadedWeightEntries(data.progress || [])
           }
+          if (profileRes.ok) {
+            const data = await profileRes.json()
+            setLoadedProfile(data.profile || null)
+          }
         } catch (error) {
-          console.error('Error loading weight entries:', error)
+          console.error('Error loading weight data:', error)
         }
       }
 
-      loadWeightEntries()
+      loadWeightData()
     } else if (isOpen && contentType === 'workout' && user && activeTrainerSlug) {
       // Load active workout
       const loadWorkout = async () => {
@@ -452,7 +456,12 @@ export function ChatContentPanel({
       case 'progress_photos':
         return <ProgressPhotosView photos={contentData?.photos || loadedPhotos || []} onPhotoClick={contentData?.onPhotoClick} />
       case 'weight_graph':
-        return <WeightGraphView entries={contentData?.entries || loadedWeightEntries || []} />
+        return (
+          <WeightGraphView 
+            entries={contentData?.entries || loadedWeightEntries || []} 
+            targetWeightKg={contentData?.targetWeightKg ?? loadedProfile?.target_weight_kg}
+          />
+        )
       case 'workout':
         // Use contentData if provided (from action), otherwise use loadedWorkout
         const workoutToDisplay = contentData || loadedWorkout

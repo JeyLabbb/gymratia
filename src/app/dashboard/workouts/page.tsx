@@ -13,7 +13,7 @@ import {
   ArrowRight,
   Download,
   History,
-  Info
+  MoreVertical
 } from 'lucide-react'
 import { personas, getTrainerBySlug } from '@/lib/personas'
 import { WorkoutExcelTable } from '@/app/_components/WorkoutExcelTable'
@@ -44,6 +44,7 @@ export default function WorkoutsPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [activeTrainers, setActiveTrainers] = useState<Array<'edu' | 'carolina' | 'jey'>>([])
   const [trainerAvatars, setTrainerAvatars] = useState<Record<string, string>>({})
+  const [actionsOpen, setActionsOpen] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -56,14 +57,18 @@ export default function WorkoutsPage() {
       loadWorkouts()
       loadTrainerAvatars()
       // Check if we should open workout panel from query params
-      const params = new URLSearchParams(window.location.search)
-      const openWorkout = params.get('openWorkout')
-      const trainer = params.get('trainer') as 'edu' | 'carolina' | null
-      if (openWorkout === 'true' && trainer) {
-        handleStartWorkoutConversation(trainer)
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search)
+        const openWorkout = params.get('openWorkout')
+        const trainer = params.get('trainer') as 'edu' | 'carolina' | null
+        if (openWorkout === 'true' && trainer) {
+          handleStartWorkoutConversation(trainer)
+        }
       }
+    } else if (!authLoading) {
+      setLoading(false)
     }
-  }, [user])
+  }, [user, authLoading])
 
   const loadTrainerAvatars = async () => {
     try {
@@ -235,22 +240,56 @@ export default function WorkoutsPage() {
 
   return (
     <DashboardLayout activeSection="workouts">
-      <div className="flex-1 overflow-y-auto px-6 py-8">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-6 sm:py-8">
         <div className="max-w-7xl mx-auto space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          {/* Header - compact on mobile, actions in menu */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-8">
             <div>
-              <h2 className="font-heading text-3xl font-bold text-[#F8FAFC] mb-2">Mis Entrenamientos</h2>
-              <p className="text-[#A7AFBE]">Gestiona tus rutinas y sigue tu progreso</p>
+              <h2 className="font-heading text-lg sm:text-3xl font-bold text-[#F8FAFC] mb-0.5 sm:mb-2">Mis Entrenamientos</h2>
+              <p className="text-xs sm:text-base text-[#A7AFBE] hidden sm:block">Gestiona tus rutinas y sigue tu progreso</p>
             </div>
             {hasActiveWorkout && (
-              <button
-                onClick={handleExportToExcel}
-                className="flex items-center gap-2 px-4 py-2 rounded-[12px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#F8FAFC] hover:bg-[#24282F] transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                Exportar Excel
-              </button>
+              <div className="relative flex items-center gap-2">
+                <button
+                  onClick={handleExportToExcel}
+                  className="hidden sm:flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] rounded-[12px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#F8FAFC] hover:bg-[#24282F] transition-colors touch-manipulation"
+                >
+                  <Download className="w-4 h-4" />
+                  Exportar Excel
+                </button>
+                <div className="sm:hidden relative">
+                  <button
+                    onClick={() => setActionsOpen(!actionsOpen)}
+                    className="flex items-center justify-center w-10 h-10 rounded-[12px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#F8FAFC] hover:bg-[#24282F] transition-colors touch-manipulation"
+                    aria-label="Acciones"
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                  {actionsOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setActionsOpen(false)} />
+                      <div className="absolute left-0 top-full mt-1 py-1 rounded-[12px] bg-[#14161B] border border-[rgba(255,255,255,0.12)] shadow-xl z-50 min-w-[160px]">
+                        <button
+                          onClick={() => { handleExportToExcel(); setActionsOpen(false) }}
+                          className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm text-[#F8FAFC] hover:bg-[#1A1D24]"
+                        >
+                          <Download className="w-4 h-4" />
+                          Exportar Excel
+                        </button>
+                        {inactiveWorkouts.length > 0 && (
+                          <button
+                            onClick={() => { setShowHistory(!showHistory); setActionsOpen(false) }}
+                            className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm text-[#F8FAFC] hover:bg-[#1A1D24]"
+                          >
+                            <History className="w-4 h-4" />
+                            {showHistory ? 'Ocultar Historial' : 'Historial'}
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 
@@ -327,20 +366,20 @@ export default function WorkoutsPage() {
           ) : (
             /* Active Workout View */
             <div className="space-y-4 sm:space-y-6">
-              {/* Workout Selector */}
-              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                    <h3 className="font-heading text-base sm:text-xl font-bold text-[#F8FAFC]">
+              {/* Workout Selector - compact on mobile */}
+              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-3 sm:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2 sm:mb-4">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <h3 className="font-heading text-sm sm:text-xl font-bold text-[#F8FAFC] truncate">
                       {displayedWorkout?.title}
                     </h3>
                     {displayedWorkout?.is_active && (
-                      <span className="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-[#FF2D2D]/10 text-[#FF2D2D] text-xs font-medium">
+                      <span className="px-1.5 sm:px-3 py-0.5 rounded-full bg-[#FF2D2D]/10 text-[#FF2D2D] text-[10px] sm:text-xs font-medium flex-shrink-0">
                         Activo
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="hidden sm:flex items-center gap-2">
                     {inactiveWorkouts.length > 0 && (
                       <button
                         onClick={() => setShowHistory(!showHistory)}
@@ -358,10 +397,19 @@ export default function WorkoutsPage() {
                       Hablar con {displayedWorkout && getTrainerName(displayedWorkout.trainer_slug)}
                     </button>
                   </div>
+                  <button
+                    onClick={() => displayedWorkout && handleStartWorkoutConversation(displayedWorkout.trainer_slug as 'edu' | 'carolina' | 'jey')}
+                    className="sm:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-[11px]"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    Hablar
+                  </button>
                 </div>
 
                 {displayedWorkout?.description && (
-                  <p className="text-sm text-[#A7AFBE] mb-4">{displayedWorkout.description}</p>
+                  <p className="text-xs sm:text-sm text-[#A7AFBE] mb-3 sm:mb-4 line-clamp-2 sm:line-clamp-none">
+                    {displayedWorkout.description}
+                  </p>
                 )}
 
                 {showHistory && inactiveWorkouts.length > 0 && (
@@ -402,19 +450,9 @@ export default function WorkoutsPage() {
                 )}
               </div>
 
-              {/* Info Message */}
-              <div className="bg-gradient-to-r from-[#FF2D2D]/10 to-[#FF2D2D]/5 border border-[#FF2D2D]/20 rounded-[16px] p-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-[8px] bg-[#FF2D2D]/20 flex-shrink-0">
-                    <Info className="w-4 h-4 text-[#FF2D2D]" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-[#F8FAFC] leading-relaxed">
-                      Si tienes alguna preferencia o quieres cambiar cosas, puedes modificarlas manualmente en la tabla, o pedirle a tu entrenador que te lo cambie.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <p className="text-xs text-[#7B8291] -mt-1 mb-2">
+                Si quieres cambiar algo, modifícalo en la tabla o pídeselo a tu entrenador.
+              </p>
 
               {/* Workout Table */}
               {displayedWorkout && (() => {
@@ -443,11 +481,16 @@ export default function WorkoutsPage() {
                   }
                 }
                 
+                const relatedIds = relatedWorkouts
+                  .filter(w => w.id !== displayedWorkout.id)
+                  .map(w => w.id)
+
                 return (
                   <WorkoutExcelTable 
                     workout={displayedWorkout}
                     onUpdate={loadWorkouts}
                     activeTrainerSlug={displayedWorkout.trainer_slug as 'edu' | 'carolina' | undefined}
+                    relatedWorkoutIds={relatedIds}
                     weekNumber={weekNumber}
                     onWeekChange={handleWeekChange}
                   />

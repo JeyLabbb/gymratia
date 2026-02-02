@@ -20,20 +20,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    console.log('[AuthProvider] init - fetching session...')
+    const timeout = setTimeout(() => {
+      console.warn('[AuthProvider] getSession timeout after 8s - forcing loading=false')
       setLoading(false)
-    })
+    }, 8000)
 
-    // Listen for auth changes
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        clearTimeout(timeout)
+        if (error) {
+          console.error('[AuthProvider] getSession error:', error)
+        }
+        console.log('[AuthProvider] session loaded:', !!session?.user, session?.user?.email ?? 'no user')
+        setUser(session?.user ?? null)
+        setLoading(false)
+        console.log('[AuthProvider] loading=false')
+      })
+      .catch((err) => {
+        clearTimeout(timeout)
+        console.error('[AuthProvider] getSession failed:', err)
+        setLoading(false)
+      })
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signInWithGoogle = async () => {

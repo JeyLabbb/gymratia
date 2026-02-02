@@ -83,9 +83,12 @@ export function EpicHomeAuthenticated() {
   }, [])
 
   useEffect(() => {
+    console.log('[EpicHome] effect:', { hasUser: !!user, authLoading, currentMode })
     if (user && !authLoading) {
+      console.log('[EpicHome] calling loadData...')
       loadData()
     } else {
+      console.log('[EpicHome] skipping loadData -> setLoading(false)')
       setLoading(false)
     }
   }, [user, authLoading, currentMode])
@@ -101,14 +104,18 @@ export function EpicHomeAuthenticated() {
   })
 
   const loadData = async () => {
+    console.log('[EpicHome] loadData started')
     if (!user) {
+      console.log('[EpicHome] loadData: no user, setLoading(false)')
       setLoading(false)
       return
     }
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
+      console.log('[EpicHome] loadData session:', !!session)
       if (!session) {
+        console.log('[EpicHome] loadData: no session, setLoading(false)')
         setLoading(false)
         return
       }
@@ -187,13 +194,16 @@ export function EpicHomeAuthenticated() {
         }
       }
     } catch (error) {
-      console.error('Error loading data:', error)
+      console.error('[EpicHome] loadData error:', error)
     } finally {
+      console.log('[EpicHome] loadData done -> setLoading(false)')
       setLoading(false)
     }
   }
 
+  console.log('[EpicHome] render:', { loading, authLoading })
   if (loading || authLoading) {
+    console.log('[EpicHome] -> LoadingScreen')
     return <LoadingScreen />
   }
 
@@ -214,7 +224,7 @@ export function EpicHomeAuthenticated() {
           {/* Hero Section */}
           <section className="relative min-h-[100vh] md:min-h-[95vh] flex items-center overflow-hidden bg-black">
             <div className="absolute inset-0 z-0">
-              <HeroBackgroundVideo src="/videos/GymRatiaBueno.mp4" />
+              <HeroBackgroundVideo src="/videos/GymRatiaBueno.mp4" mobileSrc="/videos/videomovil.mp4" />
               <div className="absolute inset-0 bg-black/60 pointer-events-none" />
               <div className="absolute bottom-0 left-0 right-0 h-48 md:h-64 bg-gradient-to-b from-transparent to-[#0A0A0B] pointer-events-none" />
             </div>
@@ -441,7 +451,7 @@ export function EpicHomeAuthenticated() {
       {/* Hero Section - Epic Version */}
       <section className="relative min-h-[100vh] md:min-h-[95vh] flex items-center overflow-hidden bg-black">
         <div className="absolute inset-0 z-0">
-          <HeroBackgroundVideo src="/videos/GymRatiaBueno.mp4" />
+          <HeroBackgroundVideo src="/videos/GymRatiaBueno.mp4" mobileSrc="/videos/videomovil.mp4" />
           <div className="absolute inset-0 bg-black/60 pointer-events-none" />
           <div className="absolute bottom-0 left-0 right-0 h-48 md:h-64 bg-gradient-to-b from-transparent to-[#0A0A0B] pointer-events-none" />
         </div>

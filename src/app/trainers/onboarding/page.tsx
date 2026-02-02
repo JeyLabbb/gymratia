@@ -39,10 +39,8 @@ function TrainerOnboardingContent() {
   const [trainer, setTrainer] = useState<any>(null)
 
   useEffect(() => {
-    if (!user) {
-      router.push('/auth/login')
-      return
-    }
+    // No redirect: show landing for unauthenticated (SEO-friendly, indexable)
+    if (!user) return
 
     // Cargar información del entrenador
     if (trainerId) {
@@ -87,7 +85,37 @@ function TrainerOnboardingContent() {
   }
 
   if (!user) {
-    return null
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#050509] via-[#050509] to-[#0A0A0B]">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 text-center">
+          <h1 className="font-heading text-3xl md:text-4xl font-bold text-[#F8FAFC] mb-4">
+            Configura tu IA de entrenador
+          </h1>
+          <p className="text-lg text-[#A7AFBE] mb-8 max-w-2xl mx-auto">
+            Añade entrenamientos y dietas personalizados que alimentarán a tu entrenador virtual. 
+            Define tu metodología, crea contenido para tus alumnos y haz crecer tu marca como entrenador.
+          </p>
+          <div className="flex flex-wrap gap-4 justify-center">
+            <Link
+              href={`/auth/login?redirect=${encodeURIComponent('/trainers/onboarding')}`}
+              className="inline-flex items-center gap-2 rounded-[18px] bg-[#FF2D2D] px-6 py-3 text-base font-semibold text-white hover:bg-[#FF3D3D] transition-colors"
+            >
+              Iniciar sesión para continuar
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/trainers/register"
+              className="inline-flex items-center gap-2 rounded-[18px] border border-[rgba(255,255,255,0.24)] px-6 py-3 text-base font-medium text-[#F8FAFC] hover:border-[#FF2D2D]/50 transition-colors"
+            >
+              Registrarse como entrenador
+            </Link>
+          </div>
+          <p className="mt-8 text-sm text-[#7B8291]">
+            ¿Aún no tienes cuenta de entrenador? <Link href="/trainers/register" className="text-[#FF2D2D] hover:underline">Regístrate aquí</Link>
+          </p>
+        </div>
+      </div>
+    )
   }
 
   if (!trainer && !trainerId) {

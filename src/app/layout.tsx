@@ -26,6 +26,13 @@ export const metadata: Metadata = {
   description: "Entrenadores-agente personalizados, planes adaptativos y análisis de progreso",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

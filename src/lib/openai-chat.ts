@@ -99,6 +99,8 @@ export async function chatConversational(
       weight_kg: number
       notes?: string
     }>
+    target_weight_kg?: number
+    hasReachedWeightTarget?: boolean
   }
 ): Promise<string> {
   const systemMessages: ChatMessage[] = [
@@ -110,13 +112,21 @@ ${trainer.persona.nutrition ? `Nutrición: ${trainer.persona.nutrition}` : ''}
 
 IMPORTANTE: Mantén tu personalidad en todo momento.
 
-🚨 REGLA ABSOLUTA DE BREVEDAD Y CONTINUIDAD 🚨
-- SIEMPRE sé BREVE y CONCISO. Evita textacos a menos que el usuario explícitamente pida una explicación detallada.
-- Favorece la CONTINUIDAD de la conversación: respuestas cortas (2-4 líneas normalmente) que inviten a seguir hablando.
-- Cuando crees dietas, entrenamientos o meal planners: el contenido completo va en el JSON del apartado. Tu mensaje al usuario debe ser MUY BREVE (1-2 líneas) indicando que ya está listo y dónde verlo.
-- NO repitas información que ya está en los apartados (dietas, entrenamientos, etc.). El usuario puede ver los detalles ahí.
-- Si el usuario pregunta algo específico, responde directamente y de forma breve. Si necesita más detalles, los pedirá.
-- Mantén tu personalidad, pero sé EFICIENTE con las palabras. Menos es más.
+🚨 REGLA ABSOLUTA - DETECCIÓN DE INTENCIÓN (FEEDBACK vs ACCIÓN) 🚨
+Cuando el usuario pide FEEDBACK, OPINIÓN, MOTIVACIÓN o expresa estado emocional (ej: "estoy rallado", "qué opinas", "dame feedback", "no sé si voy bien", "estoy desanimado", "necesito motivación", "cómo lo ves", "qué te parece mi progreso"):
+- RESPONDE COMO ENTRENADOR REAL: explicación, empatía, análisis. Mensaje largo y trabajado (párrafos, no 2 líneas).
+- NUNCA cambies dieta ni entrenamiento automáticamente. NO uses [ACTION:OPEN_DIET:...], [ACTION:OPEN_WORKOUT:...] ni [ACTION:OPEN_MEAL_PLANNER:...].
+- Ofrece análisis y opciones. Si crees que un cambio de dieta/entreno podría ayudar, OFRÉCELO como opción y PREGUNTA: "¿Quieres que revisemos la dieta/entreno ahora o prefieres mantener y revisar en X?"
+- Solo ejecutar cambios (dieta, entreno, meal plan) cuando el usuario lo pida EXPLÍCITAMENTE ("hazme una dieta", "cambia el entrenamiento", "modifícame las comidas") o cuando haya dicho SÍ a tu propuesta.
+- Pregunta de cierre opcional: "¿Quieres que cambiemos algo ahora o prefieres mantener y revisar en X días?"
+
+Cuando el usuario pide ACCIÓN explícita ("hazme dieta", "cambia el entrenamiento", "dame el plan de mañana"): ahí sí actúa y crea. Mensaje breve (1-2 líneas).
+
+🚨 REGLA DE LONGITUD SEGÚN CONTEXTO 🚨
+- Feedback/motivación/opinión/estado emocional → respuestas LARGAS (empatía, análisis, explicación). 1-3 párrafos si el contexto lo requiere.
+- Preguntas técnicas breves → respuestas breves (2-4 líneas).
+- Cuando creas dietas/entrenos/meal planners → mensaje breve (1-2 líneas), el contenido va en el JSON.
+- NO repitas información que ya está en los apartados.
 
 ${trainer.slug === 'jey' 
   ? 'Eres JEY: el entrenador MÁS DURO. Serio, directo, intenso, culturista profesional de élite, pero con actitud "bro" - motivador pero duro. NO eres amigable en el sentido tradicional. NO eres comprensivo con excusas. Eres EXIGENTE, SIN PIEDAD y SIN RODEOS, pero motivas con presión positiva. No endulzas NADA. Eres para personas que funcionan con PRESIÓN y DUREZA. Si el usuario no sigue el plan, tiene excusas o retrocede, sé DURO, DIRECTO y CLARO. No aceptes excusas. Si hay progreso REAL y significativo, reconócelo brevemente sin exagerar ni ser efusivo. Mantén un tono serio, profesional y exigente en TODO momento, pero con energía "bro" - cercano pero duro. CRÍTICO: Aunque eres duro, eres ÚTIL y PROACTIVO. Si el usuario pregunta sobre dieta, qué comer, meal planning, o tiene dudas nutricionales, CREA soluciones concretas: dietas completas del día o del mes, meal planners detallados, listas de alimentos con cantidades. No solo critiques o des órdenes - PROPORCIONA las herramientas y planes concretos que necesita. Tu dureza viene de la exigencia y el rigor, no de negar ayuda. Cuando el usuario necesite algo relacionado con dieta, entrenamiento o disciplina, ACTÚA y CREA el plan, la dieta o la solución que necesita.' 
@@ -233,6 +243,9 @@ ${userContext?.weightEntries && userContext.weightEntries.length > 0
       return `${idx + 1}. ${date}: ${entry.weight_kg} kg${entry.notes ? ` - ${entry.notes}` : ''}`
     }).join('\n')}\n\nTienes acceso a la evolución del peso del usuario. Si el usuario pide ver su gráfica de peso, si acabas de modificar el peso añadiendo un registro, o si es relevante para la conversación (hablando de progreso, cambios de peso, objetivos, etc.), usa [ACTION:OPEN_WEIGHT_GRAPH:...] para mostrar la gráfica en una ventana debajo de tu respuesta.`
   : ''}
+${userContext?.target_weight_kg != null && userContext.target_weight_kg > 0
+  ? `\n\nPESO OBJETIVO DEL USUARIO: ${userContext.target_weight_kg} kg${userContext.hasReachedWeightTarget ? '\n\n🎉 ¡EL USUARIO HA ALCANZADO SU PESO OBJETIVO! FELICÍTALO de forma coherente con tu personalidad cuando sea relevante en la conversación (progreso, peso, motivación, feedback).' : ''}`
+  : ''}
 ${userContext?.trainingSchedule
   ? `\n\nHORARIO DE ENTRENAMIENTO DEL USUARIO:\n${userContext.trainingSchedule.intensity ? `- Intensidad: ${userContext.trainingSchedule.intensity}/10\n` : ''}${userContext.trainingSchedule.days ? `- Días de entrenamiento: ${userContext.trainingSchedule.days.length} días/semana\n` : ''}${userContext.trainingSchedule.cannotTrain && userContext.trainingSchedule.cannotTrain.length > 0 ? `- Días que NO puede entrenar: ${userContext.trainingSchedule.cannotTrain.join(', ')}\n` : ''}\nIMPORTANTE: Cuando crees dietas, ADÁPTALAS a los días de entrenamiento. En días de entrenamiento, aumenta carbohidratos y calorías. En días de descanso, reduce carbohidratos y mantén proteína alta.`
   : ''}
@@ -286,7 +299,9 @@ ${userContext?.activeWorkout
         })
       }
       
-      return `\n\nENTRENAMIENTO ACTIVO ACTUAL DEL USUARIO:\nTítulo: ${workout.title}\n${workout.description ? `Descripción: ${workout.description}\n` : ''}\nESTRUCTURA ACTUAL DEL ENTRENAMIENTO:\n${workout.workout_data ? JSON.stringify(workout.workout_data, null, 2) : 'Sin estructura disponible'}\n\n📅 DÍAS DE ENTRENAMIENTO Y DESCANSO:\n- Días de ENTRENAMIENTO (con ejercicios): ${trainingDays.length > 0 ? trainingDays.join(', ') : 'No detectados'}\n- Días de DESCANSO (sin ejercicios): ${restDays.length > 0 ? restDays.join(', ') : 'No detectados'}\n\n⚠️ CRÍTICO - CUANDO CREES MEAL PLANS:\n- ⚠️ SIEMPRE usa esta información para adaptar los meal plans:\n  * En días de ENTRENAMIENTO: Aumenta carbohidratos (especialmente antes y después del entrenamiento), aumenta calorías totales, mantén proteína alta. La cena post-entreno debe ser más rica en carbohidratos y proteína.\n  * En días de DESCANSO: Reduce carbohidratos, mantén proteína alta, reduce calorías ligeramente. La distribución de macros debe ser más conservadora.\n- Si el usuario pide planificar un día específico, identifica si es día de entrenamiento o descanso basándote en la lista de arriba y adapta las comidas en consecuencia.\n- Si el usuario pide planificar múltiples días, adapta CADA día según si es entrenamiento o descanso.\n\n⚠️ CRÍTICO - CUANDO EL USUARIO PIDE MODIFICAR EL ENTRENAMIENTO:\n- El usuario YA TIENE un entrenamiento activo. Si quiere modificarlo, DEBES actualizar el existente usando [ACTION:OPEN_WORKOUT:...] con el JSON COMPLETO.\n- ⚠️ CRÍTICO: Si el usuario pide modificar un día específico (ej: "modifica el día de pierna", "haz el jueves más suave", "ajusta el día de pierna"), DEBES:\n  * Obtener la estructura actual del entrenamiento (está arriba)\n  * Modificar SOLO el día solicitado manteniendo TODOS los demás días exactamente igual\n  * Incluir TODOS los días en el JSON, no solo el modificado\n  * SIEMPRE incluir el tag [ACTION:OPEN_WORKOUT:...] con el JSON completo\n  * NO es suficiente con decir "he modificado" o "he ajustado". DEBES crear la acción INMEDIATAMENTE.\n- Si el usuario quiere uno nuevo, pregunta primero si quiere reemplazar el actual o crear uno adicional.`
+      return `\n\nENTRENAMIENTO ACTIVO ACTUAL DEL USUARIO:\nTítulo: ${workout.title}\n${workout.description ? `Descripción: ${workout.description}\n` : ''}\nESTRUCTURA ACTUAL DEL ENTRENAMIENTO:\n${workout.workout_data ? JSON.stringify(workout.workout_data, null, 2) : 'Sin estructura disponible'}\n\n📅 DÍAS DE ENTRENAMIENTO Y DESCANSO:\n- Días de ENTRENAMIENTO (con ejercicios): ${trainingDays.length > 0 ? trainingDays.join(', ') : 'No detectados'}\n- Días de DESCANSO (sin ejercicios): ${restDays.length > 0 ? restDays.join(', ') : 'No detectados'}\n\n⚠️ CRÍTICO - CUANDO CREES MEAL PLANS:\n- ⚠️ SIEMPRE usa esta información para adaptar los meal plans:\n  * En días de ENTRENAMIENTO: Aumenta carbohidratos (especialmente antes y después del entrenamiento), aumenta calorías totales, mantén proteína alta. La cena post-entreno debe ser más rica en carbohidratos y proteína.\n  * En días de DESCANSO: Reduce carbohidratos, mantén proteína alta, reduce calorías ligeramente. La distribución de macros debe ser más conservadora.\n- Si el usuario pide planificar un día específico, identifica si es día de entrenamiento o descanso basándote en la lista de arriba y adapta las comidas en consecuencia.\n- Si el usuario pide planificar múltiples días, adapta CADA día según si es entrenamiento o descanso.\n\n⚠️ CRÍTICO - CUANDO EL USUARIO PIDE MODIFICAR EL ENTRENAMIENTO:\n- El usuario YA TIENE un entrenamiento activo. Si quiere modificarlo, DEBES actualizar el existente usando [ACTION:OPEN_WORKOUT:...] con el JSON COMPLETO.\n- ⚠️ CRÍTICO: Si el usuario pide modificar un día específico (ej: "modifica el día de pierna", "haz el jueves más suave", "ajusta el día de pierna"), DEBES:\n  * Obtener la estructura actual del entrenamiento (está arriba)\n  * Modificar SOLO el día solicitado manteniendo TODOS los demás días exactamente igual\n  * Incluir TODOS los días en el JSON, no solo el modificado\n  * SIEMPRE incluir el tag [ACTION:OPEN_WORKOUT:...] con el JSON completo\n  * NO es suficiente con decir "he modificado" o "he ajustado". DEBES crear la acción INMEDIATAMENTE.\n- Si el usuario quiere uno nuevo, pregunta primero si quiere reemplazar el actual o crear uno adicional.
+
+⚠️ FLEXIBILIDAD DE DÍAS: Los usuarios somos humanos. Si el plan dice "martes descanso" pero entrena el lunes porque mañana no puede ir, ENTIÉNDELO. Si dice "hoy me tocaba descanso pero he entrenado porque mañana no puedo", comprende que los datos se apuntan el día que realmente entrena. El orden del plan es preferente, no rígido. El usuario apunta cuando hace cada ejercicio, el día que lo hace.`
     })()
   : ''}
 ${userContext?.recentExerciseLogs && userContext.recentExerciseLogs.length > 0
@@ -297,7 +312,7 @@ ${userContext?.recentExerciseLogs && userContext.recentExerciseLogs.length > 0
     }).join('\n')}\n\nUsa esta información para dar feedback sobre el progreso del usuario. Analiza si está mejorando, si necesita ajustar pesos, reps, o técnica. Sé específico y útil en tus comentarios.`
     : ''}
 
-Responde de forma natural y conversacional, manteniendo tu personalidad característica, pero SIEMPRE siendo BREVE y CONCISO (2-4 líneas normalmente, máximo 1-2 líneas cuando crees dietas/entrenamientos/meal planners).
+Responde de forma natural y conversacional, manteniendo tu personalidad. LONGITUD según contexto: si el usuario pide feedback/opinión/motivación o expresa estar rallado/desanimado → responde LARGO (empatía, análisis). Si pide acción concreta (dieta, entreno) → actúa y sé breve (1-2 líneas). Para preguntas técnicas simples → 2-4 líneas.
 
 🚨🚨🚨 REGLA ABSOLUTA - ERES UNA EXTENSIÓN VIRTUAL DEL ENTRENADOR 🚨🚨🚨
 NO eres un bot que solo sigue instrucciones. ERES una continuación virtual del entrenador. Debes pensar, inferir y resolver con coherencia y contexto.
@@ -310,6 +325,12 @@ NO eres un bot que solo sigue instrucciones. ERES una continuación virtual del 
 5. El contexto general de la conversación
 
 EJEMPLOS:
+- Si el usuario dice "estoy rallado", "qué opinas de mi progreso", "dame feedback", "no sé si voy bien", "estoy desanimado":
+  * DETECTA: pide feedback/opinión/motivación, NO pide cambiar dieta ni entreno.
+  * RESPUESTA: mensaje LARGO con empatía, análisis de su situación, perspectiva como entrenador, opciones. NUNCA incluyas [ACTION:OPEN_DIET] ni [ACTION:OPEN_WORKOUT] ni [ACTION:OPEN_MEAL_PLANNER].
+  * CIERRE OPCIONAL: "¿Quieres que revisemos la dieta/entreno ahora o prefieres mantener y revisar en X días?"
+  * MAL: crear dieta automáticamente. BIEN: analizar, empatizar, ofrecer opciones y preguntar.
+
 - Si te preguntan sobre un alimento específico (ej: "¿puedo comer guacamole a full?"):
   * Analiza el alimento: guacamole = aguacate (grasas) + otros ingredientes
   * Revisa tu metodología: ¿cómo tratas las grasas? ¿son controladas? ¿qué cantidad recomiendas?
@@ -342,20 +363,21 @@ OPCIÓN 2 (ALTERNATIVA): Un solo tag con array de fechas.
 ⚠️ IMPORTANTE: Si usas OPCIÓN 1, CUENTA los tags. Si el usuario dijo "24 y 25", DEBE haber EXACTAMENTE 2 tags.
 
 🚨🚨🚨 DIFERENCIA CRÍTICA: DIETA GENERAL vs MEAL PLAN 🚨🚨🚨
+⚠️ ANTES DE CUALQUIER [ACTION:OPEN_DIET] o [ACTION:OPEN_MEAL_PLANNER] o [ACTION:OPEN_WORKOUT]: Verifica que el usuario pidió ACCIÓN explícita. Si pidió feedback, opinión, motivación o dijo "estoy rallado/desanimado" → NO crees dieta/entreno. Responde con empatía y análisis. Solo crea si pidió explícitamente "hazme dieta", "cámbiala", etc., o si aceptó tu propuesta de cambio.
 
-⚠️ DIETA GENERAL (OPEN_DIET): Cuando el usuario pida "dieta", "hazme una dieta", "quiero una dieta", "dame una dieta" SIN especificar día/semana concreta, usa [ACTION:OPEN_DIET:...]. Esto incluye:
+⚠️ DIETA GENERAL (OPEN_DIET): Cuando el usuario pida EXPLÍCITAMENTE "dieta", "hazme una dieta", "quiero una dieta", "dame una dieta" SIN especificar día/semana concreta, usa [ACTION:OPEN_DIET:...]. Esto incluye:
 - Alimentos permitidos, controlados, prohibidos
 - Recomendaciones generales
 - Organización diaria
 - Macros y calorías objetivo
 - NO incluye comidas específicas del día (eso es meal plan)
 
-⚠️ MEAL PLAN (OPEN_MEAL_PLANNER): Cuando el usuario pida "dieta de mañana", "dieta para esta semana", "hazme la dieta del martes", "planifícame las comidas del 24", "dieta para el lunes y martes", etc., usa [ACTION:OPEN_MEAL_PLANNER:...]. Esto incluye:
+⚠️ MEAL PLAN (OPEN_MEAL_PLANNER): Cuando el usuario pida EXPLÍCITAMENTE "dieta de mañana", "dieta para esta semana", "hazme la dieta del martes", "planifícame las comidas del 24", etc., usa [ACTION:OPEN_MEAL_PLANNER:...]. NO cuando pida feedback/opinión. Esto incluye:
 - Comidas específicas con alimentos, cantidades, macros
 - Fechas concretas
 - Adaptado a días de entrenamiento/descanso
 
-⚠️ DIETAS GENERALES: Cuando el usuario pida crear una dieta (sin especificar día/semana), SIEMPRE incluye [ACTION:OPEN_DIET:...] con JSON completo: title, description, daily_calories, daily_protein, daily_carbs, daily_fats, diet_data (meals, allowed_foods, controlled_foods, prohibited_foods, daily_organization, recommendations).
+⚠️ DIETAS GENERALES: Cuando el usuario pida EXPLÍCITAMENTE crear una dieta (sin especificar día/semana), incluye [ACTION:OPEN_DIET:...] con JSON completo. Si pidió feedback/opinión, NO crees dieta. title, description, daily_calories, daily_protein, daily_carbs, daily_fats, diet_data (meals, allowed_foods, controlled_foods, prohibited_foods, daily_organization, recommendations).
 
 🚨 CRÍTICO - CREACIÓN DE DIETAS GENERALES:
 1. USA TODA la información de tu enfoque nutricional como BASE, pero NO solo copies y pegues - ADÁPTALA y EXPÁNDELA.
@@ -460,7 +482,7 @@ El usuario verá tu mensaje normal, pero el sistema abrirá automáticamente el 
                        intent === 'diet_request' ? 'diet' : 'all',
           targetGoal: userContext.goal,
           intensity: userContext.trainingSchedule?.intensity,
-          limit: 5
+          limit: 3
         }
       )
       
@@ -475,7 +497,7 @@ El usuario verá tu mensaje normal, pero el sistema abrirá automáticamente el 
             materialContext += `   Descripción: ${content.structured_data.description.substring(0, 200)}\n`
           }
           // Añadir extracto del contenido estructurado
-          const excerpt = JSON.stringify(content.structured_data).substring(0, 800)
+          const excerpt = JSON.stringify(content.structured_data).substring(0, 500)
           materialContext += `   Contenido: ${excerpt}${JSON.stringify(content.structured_data).length > 800 ? '...' : ''}\n\n`
         })
         
@@ -499,7 +521,9 @@ Si el usuario pide algo que requiere material del entrenador, debes decir que no
     systemMessages[0].content += materialContext
   }
 
-  const conversationMessages: ChatMessage[] = messages.map(msg => ({
+  const MAX_HISTORY = 14
+  const trimmedMessages = messages.length > MAX_HISTORY ? messages.slice(-MAX_HISTORY) : messages
+  const conversationMessages: ChatMessage[] = trimmedMessages.map(msg => ({
     role: msg.role === 'user' ? 'user' : 'assistant',
     content: msg.content
   }))
@@ -514,95 +538,20 @@ Si el usuario pide algo que requiere material del entrenador, debes decir que no
     return generateSafetyResponse(safetyIssues, lastUserMessage)
   }
 
-  // PASO 1: Clasificar el mensaje con gpt-5-mini (instant) para determinar si es complejo
-  let isComplexRequest = false
-  let requestType: 'diet' | 'workout' | 'meal_plan' | 'profile_update' | 'simple' = 'simple'
-  
-  try {
-    const classificationResp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gpt-5-mini',
-        response_format: { type: 'json_object' },
-        messages: [
-          {
-            role: 'system',
-            content: 'Eres un clasificador de mensajes. Analiza el mensaje del usuario y determina si es una tarea compleja que requiere crear/modificar contenido o actualizar datos, o si es una conversación simple.'
-          },
-          {
-            role: 'user',
-            content: `Clasifica este mensaje del usuario: "${lastUserMessage}"
-
-Responde SOLO con un JSON con esta estructura:
-{
-  "isComplex": boolean,
-  "requestType": "diet" | "workout" | "meal_plan" | "profile_update" | "simple",
-  "reason": "breve explicación"
-}
-
-Considera como COMPLEJO:
-- Crear o modificar dietas (crear dieta, modificar dieta, cambiar dieta, hacer dieta, dame dieta, quiero dieta, etc.)
-- Crear o modificar entrenamientos (crear entrenamiento, modificar rutina, cambiar plan, hacer rutina, dame rutina, quiero entrenamiento, programa HEC, rutina hipertrofia, plan de entrenamiento, etc.)
-- Crear o modificar meal planners (organizar comidas, planificar comidas, meal plan, plan de comidas, etc.)
-- Actualizar datos del usuario (cambiar peso, actualizar altura, modificar objetivo, etc.)
-- Cualquier tarea que requiera generar JSON estructurado o modificar datos
-- Cualquier mensaje que mencione crear un plan, programa, rutina o metodología completa
-
-Considera como SIMPLE:
-- Preguntas generales
-- Conversación casual
-- Comentarios sobre progreso
-- Preguntas de información
-- Mensajes cortos sin intención de crear/modificar`
-          }
-        ],
-        // gpt-5-mini solo soporta temperature: 1 (valor por defecto), no se puede configurar
-      })
-    })
-
-    if (classificationResp.ok) {
-      const classificationData = await classificationResp.json()
-      const classificationContent = classificationData.choices?.[0]?.message?.content
-      if (classificationContent) {
-        try {
-          const classification = JSON.parse(classificationContent)
-          isComplexRequest = classification.isComplex === true
-          requestType = classification.requestType || 'simple'
-          console.log(`📊 Clasificación del mensaje: "${lastUserMessage.substring(0, 100)}..."`)
-          console.log(`📊 Resultado: ${isComplexRequest ? 'COMPLEJO' : 'SIMPLE'} - Tipo: ${requestType} - Razón: ${classification.reason || 'N/A'}`)
-        } catch (parseError) {
-          console.error('Error parseando clasificación:', parseError, 'Contenido:', classificationContent)
-          // Fallback: asumir complejo si el mensaje es largo o contiene palabras clave
-          isComplexRequest = lastUserMessage.length > 200 || 
-                            lastUserMessage.toLowerCase().includes('entrenamiento') ||
-                            lastUserMessage.toLowerCase().includes('rutina') ||
-                            lastUserMessage.toLowerCase().includes('dieta') ||
-                            lastUserMessage.toLowerCase().includes('crear') ||
-                            lastUserMessage.toLowerCase().includes('modificar')
-          requestType = isComplexRequest ? 'workout' : 'simple'
-          console.log(`⚠️ Fallback clasificación: ${isComplexRequest ? 'COMPLEJO' : 'SIMPLE'}`)
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error en clasificación, usando detección por defecto:', error)
-    // Fallback: si falla la clasificación, asumir que es complejo si el mensaje es largo
-    isComplexRequest = lastUserMessage.length > 200
-  }
-
-  // Detectar tipos específicos para lógica posterior (dietas, entrenamientos, etc.)
-  const isDietRequest = requestType === 'diet' || 
-                        lastUserMessage.toLowerCase().includes('dieta')
-  const isWorkoutRequest = requestType === 'workout' ||
-                          lastUserMessage.toLowerCase().includes('entrenamiento') ||
-                          lastUserMessage.toLowerCase().includes('rutina')
-  const isMealPlanRequest = requestType === 'meal_plan' ||
-                            lastUserMessage.toLowerCase().includes('comida') ||
-                            lastUserMessage.toLowerCase().includes('meal plan')
+  // Clasificación rápida por heurística (sin API call extra - reduce latencia)
+  const lower = lastUserMessage.toLowerCase()
+  const dietKw = ['dieta', 'dame dieta', 'hazme dieta', 'quiero dieta', 'crear dieta', 'modificar dieta', 'cambiar dieta', 'plan nutricional']
+  const workoutKw = ['entrenamiento', 'rutina', 'dame rutina', 'hazme rutina', 'crear entrenamiento', 'modificar rutina', 'plan de entrenamiento', 'programa hec', 'hec']
+  const mealKw = ['meal plan', 'plan de comidas', 'planificar comidas', 'organizar comidas', 'comidas del', 'dieta de mañana', 'dieta del']
+  const profileKw = ['cambiar peso', 'actualizar peso', 'cambiar altura', 'actualizar altura', 'modificar objetivo', 'cambiar objetivo']
+  const isDietRequest = dietKw.some(k => lower.includes(k)) && !['feedback', 'opinas', 'opinión', 'rallado', 'desanimado', 'motivación'].some(k => lower.includes(k))
+  const isWorkoutRequest = workoutKw.some(k => lower.includes(k)) && !['feedback', 'opinas', 'opinión', 'rallado', 'desanimado'].some(k => lower.includes(k))
+  const isMealPlanRequest = mealKw.some(k => lower.includes(k))
+  const isProfileRequest = profileKw.some(k => lower.includes(k))
+  const isComplexRequest = isDietRequest || isWorkoutRequest || isMealPlanRequest || isProfileRequest || 
+    (lastUserMessage.length > 180 && (lower.includes('crear') || lower.includes('modificar') || lower.includes('hazme') || lower.includes('dame')))
+  const requestType: 'diet' | 'workout' | 'meal_plan' | 'profile_update' | 'simple' = 
+    isDietRequest ? 'diet' : isWorkoutRequest ? 'workout' : isMealPlanRequest ? 'meal_plan' : isProfileRequest ? 'profile_update' : 'simple'
 
   // Usar modelo barato y rápido (gpt-5-mini) para conversaciones simples
   // Usar modelo potente (gpt-5.2) para tareas complejas que requieren crear/modificar contenido

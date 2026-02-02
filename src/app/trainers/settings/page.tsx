@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/_components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { ArrowLeft, Save, Upload, X, Plus, Trash2, Star, Users, Target, Sparkles, Calendar, Instagram, Globe, Youtube, Twitter, Image as ImageIcon, Home, Compass, Award, CheckCircle2 } from 'lucide-react'
+import { Save, Upload, X, Plus, Trash2, Star, Users, Target, Sparkles, Calendar, Instagram, Globe, Youtube, Twitter, Image as ImageIcon, Award, CheckCircle2 } from 'lucide-react'
 import { ImageCropper } from '@/app/_components/ImageCropper'
 
 export default function TrainerSettingsPage() {
@@ -408,39 +408,10 @@ export default function TrainerSettingsPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-b from-[#050509] via-[#050509] to-[#0A0A0B]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
-        {/* Navigation Bar */}
-        <div className="sticky top-0 z-40 bg-[#050509]/80 backdrop-blur-lg border-b border-[rgba(255,255,255,0.08)] -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/trainers/dashboard"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#A7AFBE] hover:text-[#F8FAFC] hover:border-[#FF2D2D]/50 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm font-medium">Volver</span>
-              </Link>
-              <Link
-                href="/"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-[#A7AFBE] hover:text-[#F8FAFC] transition-colors"
-              >
-                <Home className="w-4 h-4" />
-                <span className="text-sm font-medium">Inicio</span>
-              </Link>
-            </div>
-            <Link
-              href="/explore"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-[#A7AFBE] hover:text-[#3B82F6] transition-colors"
-            >
-              <Compass className="w-4 h-4" />
-              <span className="text-sm font-medium">Explorar</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="font-heading text-3xl md:text-4xl font-bold text-[#F8FAFC] mb-2">
             Editar perfil
           </h1>
@@ -1108,9 +1079,8 @@ export default function TrainerSettingsPage() {
           </div>
         </div>
       </div>
-
-      {/* Image Cropper Modal */}
-      {formData.showCropper && formData.tempImageSrc && (
+    </div>
+    {formData.showCropper && formData.tempImageSrc && (
         <ImageCropper
           imageSrc={formData.tempImageSrc}
           onCrop={async (croppedImageUrl) => {
@@ -1235,7 +1205,7 @@ export default function TrainerSettingsPage() {
           }}
         />
       )}
-    </div>
+    </>
   )
 }
 

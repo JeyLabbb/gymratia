@@ -91,6 +91,12 @@ export function MealPlanCalendar({ mealPlan, onDayClick, onEdit, editable = fals
     return localMealPlan.find(day => day.date === dateStr)
   }
 
+  // Safe access: meal.foods can be undefined from API (e.g. trainer jey, legacy data)
+  const getMealFoods = (meal: { foods?: unknown }): Array<{ name?: string; quantity?: number; unit?: string; calories?: number; protein?: number; carbs?: number; fats?: number }> => {
+    if (!meal || meal.foods == null) return []
+    return Array.isArray(meal.foods) ? (meal.foods as Array<{ name?: string; quantity?: number; unit?: string; calories?: number; protein?: number; carbs?: number; fats?: number }>) : []
+  }
+
   // Get sorted meals for selected day (sorted by time)
   const sortedMealsForSelectedDay = useMemo(() => {
     if (!selectedDay) return []
@@ -186,10 +192,22 @@ export function MealPlanCalendar({ mealPlan, onDayClick, onEdit, editable = fals
     onDayClick?.(dateStr)
   }
 
-  // Update local meal plan when prop changes
+  // Update local meal plan when prop changes; normalize meals to ensure foods is always an array
   useEffect(() => {
     if (mealPlan) {
-      setLocalMealPlan(mealPlan)
+      const normalized = mealPlan.map(day => ({
+        ...day,
+        meals: (day.meals || []).map(meal => {
+          const foods = meal?.foods != null && Array.isArray(meal.foods) ? meal.foods : []
+          if (meal?.foods == null || !Array.isArray(meal.foods)) {
+            if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+              console.warn('[MealPlanCalendar] Meal without foods:', { day: day.date, meal: meal?.name ?? meal })
+            }
+          }
+          return { ...meal, foods }
+        })
+      }))
+      setLocalMealPlan(normalized)
     }
   }, [mealPlan])
 
@@ -269,31 +287,34 @@ export function MealPlanCalendar({ mealPlan, onDayClick, onEdit, editable = fals
                 {/* Meals */}
                 {dayPlan && dayPlan.meals.length > 0 ? (
                   <div className="space-y-2">
-                    {dayPlan.meals.map((meal, mealIdx) => (
-                      <div key={mealIdx} className="bg-[rgba(255,255,255,0.03)] rounded-lg p-2">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-xs font-semibold text-[#F8FAFC]">{meal.name}</p>
-                          <p className="text-xs text-[#A7AFBE]">{meal.time}</p>
-                        </div>
-                        <div className="space-y-1">
-                          {meal.foods.slice(0, 2).map((food, foodIdx) => (
-                            <p key={foodIdx} className="text-xs text-[#A7AFBE] truncate">
-                              • {food.name} {food.quantity}{food.unit}
-                            </p>
-                          ))}
-                          {meal.foods.length > 2 && (
-                            <p className="text-xs text-[#7B8291]">
-                              +{meal.foods.length - 2} más
+                    {dayPlan.meals.map((meal, mealIdx) => {
+                      const foods = getMealFoods(meal)
+                      return (
+                        <div key={mealIdx} className="bg-[rgba(255,255,255,0.03)] rounded-lg p-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-xs font-semibold text-[#F8FAFC]">{meal.name}</p>
+                            <p className="text-xs text-[#A7AFBE]">{meal.time}</p>
+                          </div>
+                          <div className="space-y-1">
+                            {foods.slice(0, 2).map((food, foodIdx) => (
+                              <p key={foodIdx} className="text-xs text-[#A7AFBE] truncate">
+                                • {food.name} {food.quantity ?? ''}{food.unit ?? ''}
+                              </p>
+                            ))}
+                            {foods.length > 2 && (
+                              <p className="text-xs text-[#7B8291]">
+                                +{foods.length - 2} más
+                              </p>
+                            )}
+                          </div>
+                          {foods.reduce((sum, f) => sum + (f.calories || 0), 0) > 0 && (
+                            <p className="text-xs text-[#FF2D2D] mt-1 font-medium">
+                              {foods.reduce((sum, f) => sum + (f.calories || 0), 0)} kcal
                             </p>
                           )}
                         </div>
-                        {meal.foods.reduce((sum, f) => sum + (f.calories || 0), 0) > 0 && (
-                          <p className="text-xs text-[#FF2D2D] mt-1 font-medium">
-                            {meal.foods.reduce((sum, f) => sum + (f.calories || 0), 0)} kcal
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -376,7 +397,7 @@ export function MealPlanCalendar({ mealPlan, onDayClick, onEdit, editable = fals
                       </div>
                     </div>
                     <div className="space-y-1.5 mt-2">
-                      {meal.foods.map((food, foodIdx) => (
+                      {getMealFoods(meal).map((food, foodIdx) => (
                         <div key={foodIdx} className="flex items-center justify-between text-sm py-1">
                           <div className="flex-1">
                             <p className="text-[#F8FAFC] font-medium">{food.name}</p>

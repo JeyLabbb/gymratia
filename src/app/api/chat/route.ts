@@ -247,123 +247,52 @@ export async function POST(req: Request) {
       chat = data
     }
 
-    // Get user profile for context
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .single()
+    const [profileRes, notificationsRes, progressPhotosRes, plansRes, activeDietRes, recentMealPlannersRes, foodCategoriesRes, activeWorkoutRes, recentExerciseLogsRes, weightEntriesRes, previousMessagesRes] = await Promise.all([
+      supabase.from('user_profiles').select('*').eq('user_id', user.id).single(),
+      supabase.from('trainer_notifications').select('*').eq('user_id', user.id).eq('trainer_slug', trainerSlug).eq('read', false).order('created_at', { ascending: false }).limit(3),
+      supabase.from('progress_photos').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(5),
+      supabase.from('plans').select('plan_json, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+      supabase.from('user_diets').select('*').eq('user_id', user.id).eq('trainer_slug', trainerSlug).eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('meal_planners').select('*').eq('user_id', user.id).eq('trainer_slug', trainerSlug).order('date', { ascending: false }).limit(5),
+      supabase.from('user_food_categories').select('*').eq('user_id', user.id).eq('trainer_slug', trainerSlug),
+      supabase.from('user_workouts').select('*').eq('user_id', user.id).eq('trainer_slug', trainerSlug).eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('exercise_logs').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(10),
+      supabase.from('progress_tracking').select('*').eq('user_id', user.id).not('weight_kg', 'is', null).order('date', { ascending: false }).limit(10),
+      supabase.from('chat_messages').select('*').eq('chat_id', chat.id).order('created_at', { ascending: true })
+    ])
 
-    // Get recent profile changes/notifications for this trainer
-    const { data: recentNotifications } = await supabase
-      .from('trainer_notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('trainer_slug', trainerSlug)
-      .eq('read', false)
-      .order('created_at', { ascending: false })
-      .limit(3)
+    const profile = profileRes.data ?? null
+    const recentNotifications = (notificationsRes.data ?? []) as any[]
+    const progressPhotos = (progressPhotosRes.data ?? []) as any[]
+    const plans = (plansRes.data ?? []) as any[]
+    const activeDiet = activeDietRes.data
+    const recentMealPlanners = (recentMealPlannersRes.data ?? []) as any[]
+    const foodCategories = (foodCategoriesRes.data ?? []) as any[]
+    const activeWorkout = activeWorkoutRes.data
+    const recentExerciseLogs = (recentExerciseLogsRes.data ?? []) as any[]
+    const weightEntries = (weightEntriesRes.data ?? []) as any[]
+    const previousMessages = (previousMessagesRes.data ?? []) as any[]
 
-    // Get recent progress photos with notes for context
-    const { data: progressPhotos } = await supabase
-      .from('progress_photos')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false })
-      .limit(10) // Get last 10 photos
-
-    // Get active workout plan for training schedule context
-    // Note: trainerSlug is stored inside plan_json, so we filter after fetching
-    const { data: plans } = await supabase
-      .from('plans')
-      .select('plan_json, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10)
-
-    // Find plan for this trainer
-    const activePlan = plans?.find((p: any) => {
+    const activePlan = plans.find((p: any) => {
       const planData = p.plan_json as any
       return planData?.trainerSlug === trainerSlug
     })
 
-    // Get active diet for this trainer
-    const { data: activeDiet } = await supabase
-      .from('user_diets')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('trainer_slug', trainerSlug)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    // Get recent meal planners for this trainer
-    const { data: recentMealPlanners } = await supabase
-      .from('meal_planners')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('trainer_slug', trainerSlug)
-      .order('date', { ascending: false })
-      .limit(7) // Last 7 days
-
-    // Get food categories for this trainer
-    const { data: foodCategories } = await supabase
-      .from('user_food_categories')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('trainer_slug', trainerSlug)
-
-    // Get active workout for this trainer
-    const { data: activeWorkout } = await supabase
-      .from('user_workouts')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('trainer_slug', trainerSlug)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    // Get recent exercise logs for progress tracking
-    const { data: recentExerciseLogs } = await supabase
-      .from('exercise_logs')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false })
-      .limit(30) // Last 30 logs
-
-    // Get weight progress entries for weight graph context
-    const { data: weightEntries } = await supabase
-      .from('progress_tracking')
-      .select('*')
-      .eq('user_id', user.id)
-      .not('weight_kg', 'is', null)
-      .order('date', { ascending: false })
-      .limit(30) // Last 30 weight entries
-
     // Get the most recent weight from progress_tracking (more up-to-date than profile)
-    const latestWeight = weightEntries && weightEntries.length > 0 
+    const latestWeight = weightEntries?.length > 0 
       ? weightEntries[0].weight_kg 
       : profile?.weight_kg
 
-    // Get previous messages
-    const { data: previousMessages } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('chat_id', chat.id)
-      .order('created_at', { ascending: true })
-
-    const messageHistory = (previousMessages || []).map((msg) => ({
+    const MAX_HISTORY_MESSAGES = 16
+    const allPrev = (previousMessages || []).map((msg) => ({
       role: msg.role as 'user' | 'assistant',
       content: msg.content,
     }))
+    const messageHistory = allPrev.length > MAX_HISTORY_MESSAGES
+      ? allPrev.slice(-MAX_HISTORY_MESSAGES)
+      : allPrev
 
-    // Add user message
-    messageHistory.push({
-      role: 'user',
-      content: message,
-    })
+    messageHistory.push({ role: 'user', content: message })
 
     // Save user message
     await supabase.from('chat_messages').insert({
@@ -393,12 +322,19 @@ export async function POST(req: Request) {
     const mealTimes = profile?.preferred_meal_times as any
     const trainingSchedulePrefs = profile?.training_schedule as any
 
+    // Check if user has reached their target weight
+    const targetWeightKg = profile?.target_weight_kg as number | undefined
+    const hasReachedWeightTarget = targetWeightKg != null && targetWeightKg > 0 && latestWeight != null &&
+      Math.abs(latestWeight - targetWeightKg) <= 0.5
+
     // Build context with profile, recent changes, progress photos, training/diet preferences, and existing diet data
     const userContext = profile
       ? {
           fullName: profile.preferred_name || profile.full_name,
           height_cm: profile.height_cm,
           weight_kg: latestWeight, // Use most recent weight from progress_tracking instead of profile
+          target_weight_kg: targetWeightKg,
+          hasReachedWeightTarget,
           goal: profile.goal,
           sex: profile.sex,
           recentChanges: recentNotifications?.map(n => n.message).join(' ') || undefined,

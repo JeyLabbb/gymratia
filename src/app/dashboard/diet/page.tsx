@@ -13,7 +13,8 @@ import {
   ArrowRight,
   Edit2,
   Trash2,
-  Info
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react'
 import { personas, getTrainerBySlug } from '@/lib/personas'
 import { DietView } from '@/app/_components/DietView'
@@ -60,6 +61,7 @@ export default function DietPage() {
   const [selectedTrainer, setSelectedTrainer] = useState<'edu' | 'carolina' | null>(null)
   const [activeTrainerSlug, setActiveTrainerSlug] = useState<'edu' | 'carolina' | null>(null)
   const [activeTrainers, setActiveTrainers] = useState<Array<'edu' | 'carolina' | 'jey'>>([])
+  const [mealPlanExpanded, setMealPlanExpanded] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -71,14 +73,18 @@ export default function DietPage() {
     if (user) {
       loadDietData()
       // Check if we should open diet panel from query params
-      const params = new URLSearchParams(window.location.search)
-      const openDiet = params.get('openDiet')
-      const trainer = params.get('trainer') as 'edu' | 'carolina' | null
-      if (openDiet === 'true' && trainer) {
-        handleStartDietConversation(trainer)
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search)
+        const openDiet = params.get('openDiet')
+        const trainer = params.get('trainer') as 'edu' | 'carolina' | null
+        if (openDiet === 'true' && trainer) {
+          handleStartDietConversation(trainer)
+        }
       }
+    } else if (!authLoading) {
+      setLoading(false)
     }
-  }, [user])
+  }, [user, authLoading])
 
   // Reload diet data when window gains focus (in case diet was created in another tab/window)
   useEffect(() => {
@@ -295,10 +301,10 @@ export default function DietPage() {
     <DashboardLayout activeSection="diet">
       <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-8">
         <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4 sm:mb-8">
+          {/* Header - compact on mobile */}
+          <div className="flex items-center justify-between mb-3 sm:mb-8">
             <div>
-              <h2 className="font-heading text-xl sm:text-3xl font-bold text-[#F8FAFC] mb-1 sm:mb-2">Mi Dieta</h2>
+              <h2 className="font-heading text-lg sm:text-3xl font-bold text-[#F8FAFC] mb-0.5 sm:mb-2">Mi Dieta</h2>
               <p className="text-xs sm:text-base text-[#A7AFBE] hidden sm:block">Gestiona tu alimentación y planes de comidas</p>
             </div>
           </div>
@@ -354,32 +360,38 @@ export default function DietPage() {
             </div>
           ) : (
             /* Active Diet View */
-            <div className="space-y-4 sm:space-y-6">
-              {/* Active Diet Card */}
-              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
-                      <h3 className="font-heading text-base sm:text-xl font-bold text-[#F8FAFC]">
-                        {activeDiet.title}
-                      </h3>
-                      <span className="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-[#FF2D2D]/10 text-[#FF2D2D] text-xs font-medium">
-                        Activa
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#7B8291]">
-                      Creada por {getTrainerName(activeDiet.trainer_slug)}
-                    </p>
+            <div className="space-y-3 sm:space-y-6">
+              {/* Active Diet Card - compact: one line title + hablar on mobile */}
+              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-3 sm:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <h3 className="font-heading text-sm sm:text-xl font-bold text-[#F8FAFC] truncate">
+                      {activeDiet.title}
+                    </h3>
+                    <span className="px-1.5 sm:px-3 py-0.5 rounded-full bg-[#FF2D2D]/10 text-[#FF2D2D] text-[10px] sm:text-xs font-medium flex-shrink-0">
+                      Activa
+                    </span>
                   </div>
                   <button
                     onClick={() => handleStartDietConversation(activeDiet.trainer_slug as 'edu' | 'carolina')}
-                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-[10px] sm:rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-xs sm:text-sm w-full sm:w-auto"
+                    className="flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-[10px] sm:rounded-[12px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors text-[11px] sm:text-sm flex-shrink-0"
                   >
                     <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">Hablar con {getTrainerName(activeDiet.trainer_slug)}</span>
                     <span className="sm:hidden">Hablar</span>
                   </button>
                 </div>
+                <p className="text-[10px] sm:text-xs text-[#7B8291] mb-3 sm:mb-4 -mt-1">
+                  {getTrainerName(activeDiet.trainer_slug)}
+                </p>
+
+                <button
+                  onClick={() => document.getElementById('plan-de-comidas')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="flex items-center gap-1.5 text-xs text-[#7B8291] hover:text-[#FF2D2D] transition-colors mb-3"
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  Ir al plan de comidas
+                </button>
 
                 {activeDiet.diet_data ? (
                   <DietView 
@@ -403,6 +415,7 @@ export default function DietPage() {
                     hideTitle={true}
                     editable={false}
                     activeTrainerSlug={activeTrainerSlug}
+                    compactOnMobile={true}
                   />
                 ) : (
                   <div className="bg-[#1A1D24] border border-[rgba(255,255,255,0.05)] rounded-[12px] p-6">
@@ -413,29 +426,30 @@ export default function DietPage() {
                 )}
               </div>
 
-              {/* Info Message */}
-              <div className="bg-gradient-to-r from-[#FF2D2D]/10 to-[#FF2D2D]/5 border border-[#FF2D2D]/20 rounded-[12px] sm:rounded-[16px] p-3 sm:p-4">
-                <div className="flex items-start gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-[6px] sm:rounded-[8px] bg-[#FF2D2D]/20 flex-shrink-0">
-                    <Info className="w-3 h-3 sm:w-4 sm:h-4 text-[#FF2D2D]" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs sm:text-sm text-[#F8FAFC] leading-relaxed">
-                      Puedes modificar las comidas en el calendario o pedirle a tu entrenador que te lo cambie.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <p className="text-xs text-[#7B8291] -mt-1 mb-2">
+                Puedes modificar las comidas en el calendario o pedirle a tu entrenador que te lo cambie.
+              </p>
 
-              {/* Meal Planners - Calendar View */}
-              <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-4 sm:p-6">
-                <div className="flex items-center justify-between mb-3 sm:mb-4">
-                  <h3 className="font-heading text-base sm:text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
-                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#FF2D2D]" />
-                    <span className="hidden sm:inline">Plan de Comidas Semanal</span>
-                    <span className="sm:hidden">Comidas</span>
+              {/* Meal Planners - collapsible on mobile */}
+              <div id="plan-de-comidas" className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] overflow-hidden scroll-mt-4">
+                <button
+                  onClick={() => setMealPlanExpanded(!mealPlanExpanded)}
+                  className="flex md:hidden w-full items-center justify-between p-3 sm:p-4 text-left"
+                >
+                  <h3 className="font-heading text-base font-bold text-[#F8FAFC] flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-[#FF2D2D]" />
+                    Ver plan de comidas
                   </h3>
-                </div>
+                  {mealPlanExpanded ? <ChevronUp className="w-4 h-4 text-[#A7AFBE]" /> : <ChevronDown className="w-4 h-4 text-[#A7AFBE]" />}
+                </button>
+                <div className={mealPlanExpanded ? "block" : "hidden md:block"}>
+                  <div className="hidden md:flex items-center justify-between p-4 pb-0 mb-2">
+                    <h3 className="font-heading text-base sm:text-lg font-bold text-[#F8FAFC] flex items-center gap-2">
+                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#FF2D2D]" />
+                      Plan de Comidas Semanal
+                    </h3>
+                  </div>
+                  <div className="p-3 sm:p-6 pt-0 sm:pt-0">
                 <MealPlanCalendar
                   mealPlan={mealPlanners.map((p: MealPlanner) => ({
                     date: p.date,
@@ -482,6 +496,8 @@ export default function DietPage() {
                     }
                   }}
                 />
+                  </div>
+                </div>
               </div>
             </div>
           )}

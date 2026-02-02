@@ -10,6 +10,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const workoutId = searchParams.get('workoutId')
+    const workoutIds = searchParams.get('workoutIds') // Comma-separated for merging related workouts
     const exerciseName = searchParams.get('exerciseName')
     const date = searchParams.get('date')
     const startDate = searchParams.get('startDate')
@@ -32,7 +33,12 @@ export async function GET(req: Request) {
       .select('*')
       .eq('user_id', user.id)
 
-    if (workoutId) {
+    if (workoutIds) {
+      const ids = workoutIds.split(',').map((id: string) => id.trim()).filter(Boolean)
+      if (ids.length > 0) {
+        query = query.in('workout_id', ids)
+      }
+    } else if (workoutId) {
       query = query.eq('workout_id', workoutId)
     }
 
@@ -52,7 +58,10 @@ export async function GET(req: Request) {
       query = query.lte('date', endDate)
     }
 
-    const { data: logs, error } = await query.order('date', { ascending: false }).order('created_at', { ascending: false })
+    const { data: logs, error } = await query
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(2000)
 
     if (error) {
       return NextResponse.json({ error: 'Failed to fetch exercise logs' }, { status: 500 })
@@ -72,7 +81,8 @@ export async function POST(req: Request) {
       exercise_name,
       date,
       sets,
-      notes
+      notes,
+      related_workout_ids
     } = body
 
     if (!workout_id || !exercise_name || !date || !sets) {
@@ -91,8 +101,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if log already exists for this exercise and date
-    const { data: existingLog } = await supabaseAdmin
+    // Check if log already exists for this exercise and date (same workout or any related)
+    let existingLog: any = null
+    const { data: exactMatch } = await supabaseAdmin
       .from('exercise_logs')
       .select('*')
       .eq('user_id', user.id)
@@ -100,10 +111,34 @@ export async function POST(req: Request) {
       .eq('exercise_name', exercise_name)
       .eq('date', date)
       .maybeSingle()
+    existingLog = exactMatch
+
+    // If no exact match, check for same exercise+date under any related workout (avoid duplicates when merging)
+    if (!existingLog && body.related_workout_ids?.length) {
+      const { data: rows } = await supabaseAdmin
+        .from('exercise_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('workout_id', [workout_id, ...body.related_workout_ids])
+        .eq('exercise_name', exercise_name)
+        .eq('date', date)
+        .limit(1)
+      existingLog = rows?.[0]
+    }
 
     if (existingLog) {
-      // Update existing log
-      const updatedSets = [...(existingLog.sets || []), ...sets]
+      // Update existing log - merge by set_number
+      const existing = (existingLog.sets || []) as Array<{ set_number: number; [k: string]: any }>
+      const merged = [...existing]
+      for (const incoming of sets as Array<{ set_number: number; [k: string]: any }>) {
+        const idx = merged.findIndex(s => s.set_number === incoming.set_number)
+        if (idx >= 0) {
+          merged[idx] = { ...merged[idx], ...incoming }
+        } else {
+          merged.push(incoming)
+        }
+      }
+      const updatedSets = merged
       
       const { data: log, error } = await supabaseAdmin
         .from('exercise_logs')

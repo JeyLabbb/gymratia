@@ -47,7 +47,16 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Failed to fetch meal planners' }, { status: 500 })
     }
 
-    return NextResponse.json({ planners: planners || [] })
+    // Normalize: ensure each meal has foods array (can be undefined from DB, e.g. trainer jey)
+    const normalized = (planners || []).map((p: any) => ({
+      ...p,
+      meals: (p.meals || []).map((m: any) => ({
+        ...m,
+        foods: m?.foods != null && Array.isArray(m.foods) ? m.foods : []
+      }))
+    }))
+
+    return NextResponse.json({ planners: normalized })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
   }

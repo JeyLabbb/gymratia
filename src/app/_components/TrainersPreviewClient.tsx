@@ -92,11 +92,29 @@ export function TrainersPreviewClient() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let done = false
+    const fallbackTrainers = personas.filter(t => t.is_active !== false).slice(0, 2).map(t => ({
+      slug: t.slug,
+      name: t.name,
+      headline: t.headline,
+      avatar_url: undefined,
+      average_rating: 0,
+      total_ratings: 0,
+      active_students: 0
+    }))
+
+    const timeout = setTimeout(() => {
+      if (!done) {
+        done = true
+        setTrainersWithAvatars(fallbackTrainers)
+        setLoading(false)
+      }
+    }, 5000)
+
     const loadTrainers = async () => {
       try {
         const personaTrainers = personas.filter(t => t.is_active !== false).slice(0, 2)
         
-        // Cargar avatares y estadísticas desde BD para cada entrenador (jey, edu, carolina son separados)
         const trainersPromises = personaTrainers.map(async (trainer) => {
           try {
             const { data: trainerData } = await supabase
@@ -129,26 +147,26 @@ export function TrainersPreviewClient() {
         })
         
         const trainers = await Promise.all(trainersPromises)
-        setTrainersWithAvatars(trainers)
+        if (!done) {
+          done = true
+          clearTimeout(timeout)
+          setTrainersWithAvatars(trainers)
+          setLoading(false)
+        }
       } catch (error) {
         console.error('Error loading trainers:', error)
-        // Fallback a solo personas si falla
-        const personaTrainers = personas.filter(t => t.is_active !== false).slice(0, 2)
-        setTrainersWithAvatars(personaTrainers.map(t => ({
-          slug: t.slug,
-          name: t.name,
-          headline: t.headline,
-          avatar_url: undefined,
-          average_rating: 0,
-          total_ratings: 0,
-          active_students: 0
-        })))
+        if (!done) {
+          done = true
+          setTrainersWithAvatars(fallbackTrainers)
+          setLoading(false)
+        }
       } finally {
-        setLoading(false)
+        clearTimeout(timeout)
       }
     }
     
     loadTrainers()
+    return () => clearTimeout(timeout)
   }, [])
 
   if (loading) {

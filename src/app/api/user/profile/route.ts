@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { height_cm, weight_kg, goal, sex, full_name, preferred_name, avatar_url, preferred_meal_times, training_schedule } = body
+    const { height_cm, weight_kg, target_weight_kg, goal, sex, full_name, preferred_name, avatar_url, preferred_meal_times, training_schedule } = body
 
     const authHeader = req.headers.get('authorization')
     if (!authHeader) {
@@ -61,6 +61,11 @@ export async function POST(req: Request) {
       profileData.weight_kg = Number(weight_kg)
     }
     if (goal) profileData.goal = goal
+    if (target_weight_kg !== undefined && target_weight_kg !== null && target_weight_kg !== '') {
+      profileData.target_weight_kg = Number(target_weight_kg)
+    } else if (target_weight_kg === '' || target_weight_kg === null) {
+      profileData.target_weight_kg = null
+    }
     if (sex) profileData.sex = sex
     if (full_name) profileData.full_name = full_name
     if (preferred_name) profileData.preferred_name = preferred_name

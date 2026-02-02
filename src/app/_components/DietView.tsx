@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Edit2, Check, X, Plus, ChevronDown, ChevronUp, Search, Download } from 'lucide-react'
+import { Edit2, Check, X, Plus, ChevronDown, ChevronUp, Search, Download, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { downloadDietPDF } from '@/lib/pdf-utils'
 
@@ -73,6 +73,7 @@ type DietViewProps = {
   editable?: boolean
   hideTitle?: boolean // Hide title if it's shown in parent component
   activeTrainerSlug?: 'edu' | 'carolina' | 'jey' | string | null
+  compactOnMobile?: boolean // Foods first, macros in collapsible on mobile
 }
 
 // Helper function to normalize category names
@@ -108,18 +109,19 @@ function normalizeCategoryName(category: string): string {
   ).join(' ')
 }
 
-export function DietView({ dietData, onEdit, editable = false, hideTitle = false, activeTrainerSlug }: DietViewProps) {
+export function DietView({ dietData, onEdit, editable = false, hideTitle = false, activeTrainerSlug, compactOnMobile = true }: DietViewProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'allowed' | 'controlled' | 'prohibited'>('allowed')
 
   const totalMacros = dietData.meals?.reduce((acc, meal) => {
-    const mealMacros = meal.foods.reduce((mealAcc, food) => ({
-      calories: mealAcc.calories + food.calories,
-      protein: mealAcc.protein + food.protein,
-      carbs: mealAcc.carbs + food.carbs,
-      fats: mealAcc.fats + food.fats,
+    const mealFoods = meal?.foods != null && Array.isArray(meal.foods) ? meal.foods : []
+    const mealMacros = mealFoods.reduce((mealAcc, food) => ({
+      calories: mealAcc.calories + (food?.calories ?? 0),
+      protein: mealAcc.protein + (food?.protein ?? 0),
+      carbs: mealAcc.carbs + (food?.carbs ?? 0),
+      fats: mealAcc.fats + (food?.fats ?? 0),
     }), { calories: 0, protein: 0, carbs: 0, fats: 0 })
     
     return {
@@ -243,35 +245,8 @@ export function DietView({ dietData, onEdit, editable = false, hideTitle = false
   const description = typeof dietData.description === 'string' ? dietData.description : (dietData.description ? String(dietData.description) : '')
   const titleContainsDescription = description && typeof description === 'string' && typeof title === 'string' && title.toLowerCase().includes(description.toLowerCase().substring(0, 20))
 
-  return (
-    <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header */}
-      {!hideTitle && (
-        <div className="flex items-start justify-between">
-          <div>
-            <h4 className="font-heading text-lg sm:text-xl font-bold text-[#F8FAFC] mb-1 sm:mb-2">
-              {title}
-            </h4>
-            {description && !titleContainsDescription && (
-              <p className="text-xs sm:text-sm text-[#A7AFBE]">{description}</p>
-            )}
-          </div>
-        {editable && onEdit && (
-          <button
-            onClick={() => {
-              setIsEditing(true)
-              onEdit()
-            }}
-            className="p-1.5 sm:p-2 rounded-lg hover:bg-[#1A1D24] transition-colors"
-          >
-            <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF2D2D]" />
-          </button>
-        )}
-        </div>
-      )}
-
-      {/* Daily Macros Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+  const macrosSection = (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[10px] sm:rounded-[12px] p-3 sm:p-4">
           <p className="text-[10px] sm:text-xs text-[#A7AFBE] mb-0.5 sm:mb-1">Calorías</p>
           <p className="text-lg sm:text-2xl font-heading font-bold text-[#FF2D2D]">
@@ -317,12 +292,60 @@ export function DietView({ dietData, onEdit, editable = false, hideTitle = false
           )}
         </div>
       </div>
+  )
 
-      {/* Food Categories Summary & Search */}
+  return (
+    <div className={cn("animate-in fade-in slide-in-from-bottom-4 duration-500", compactOnMobile ? "flex flex-col gap-4 sm:gap-6" : "space-y-4 sm:space-y-6", compactOnMobile && "flex")}>
+      {/* Header - compact on mobile when compactOnMobile */}
+      {!hideTitle && (
+        <div className="flex items-start justify-between">
+          <div className="min-w-0 flex-1">
+            <h4 className="font-heading text-base sm:text-xl font-bold text-[#F8FAFC] mb-0.5 sm:mb-2 truncate">
+              {title}
+            </h4>
+            {description && !titleContainsDescription && (
+              <p className="text-xs sm:text-sm text-[#A7AFBE] line-clamp-2 sm:line-clamp-none">{description}</p>
+            )}
+          </div>
+        {editable && onEdit && (
+          <button
+            onClick={() => {
+              setIsEditing(true)
+              onEdit()
+            }}
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-[#1A1D24] transition-colors flex-shrink-0"
+          >
+            <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF2D2D]" />
+          </button>
+        )}
+        </div>
+      )}
+
+      {/* Macros: collapsible on mobile (Resumen del plan), full on desktop - order 3 after foods and org */}
+      <div className={cn(compactOnMobile && "order-3")}>
+        {compactOnMobile ? (
+          <>
+            <details className="md:hidden group">
+              <summary className="flex items-center justify-between p-3 rounded-[12px] bg-[#14161B] border border-[rgba(255,255,255,0.08)] cursor-pointer list-none">
+                <span className="text-sm font-semibold text-[#F8FAFC]">Resumen del plan (kcal, macros)</span>
+                <ChevronRight className="w-4 h-4 text-[#A7AFBE] group-open:rotate-90 transition-transform" />
+              </summary>
+              <div className="mt-2">
+                {macrosSection}
+              </div>
+            </details>
+            <div className="hidden md:block">{macrosSection}</div>
+          </>
+        ) : (
+          macrosSection
+        )}
+      </div>
+
+      {/* Food Categories - first on mobile when compactOnMobile */}
       {(dietData.allowed_foods || dietData.controlled_foods || dietData.prohibited_foods) && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h5 className="font-heading text-lg font-bold text-[#F8FAFC]">Alimentos</h5>
+        <div className={cn("space-y-4 sm:space-y-6", compactOnMobile && "order-1 md:order-2")}>
+          <div className="flex items-center justify-between gap-2">
+            <h5 className="font-heading text-sm sm:text-lg font-bold text-[#F8FAFC]">Alimentos</h5>
             <button
               onClick={() => {
                 downloadDietPDF(
@@ -335,7 +358,7 @@ export function DietView({ dietData, onEdit, editable = false, hideTitle = false
                   dietData.recommendations
                 )
               }}
-              className="flex items-center gap-2 px-3 py-1.5 bg-[#FF2D2D] hover:bg-[#FF4444] text-white text-sm rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-[#FF2D2D] hover:bg-[#FF4444] text-white text-[11px] sm:text-sm rounded-lg transition-colors flex-shrink-0"
             >
               <Download className="w-4 h-4" />
               Descargar PDF
@@ -343,7 +366,7 @@ export function DietView({ dietData, onEdit, editable = false, hideTitle = false
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {/* Allowed Foods Card */}
             <button
               onClick={() => setActiveTab('allowed')}
@@ -366,36 +389,36 @@ export function DietView({ dietData, onEdit, editable = false, hideTitle = false
             <button
               onClick={() => setActiveTab('controlled')}
               className={cn(
-                "bg-[#14161B] border rounded-[12px] p-4 text-left transition-all",
+                "bg-[#14161B] border rounded-[10px] sm:rounded-[12px] p-2.5 sm:p-4 text-left transition-all",
                 activeTab === 'controlled' 
                   ? "border-[#FBBF24] bg-[rgba(251,191,36,0.1)]" 
                   : "border-[rgba(251,191,36,0.2)] hover:border-[rgba(251,191,36,0.4)]"
               )}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 rounded-full bg-[#FBBF24]"></span>
-                <h6 className="font-heading font-bold text-[#FBBF24] text-sm">Controlados</h6>
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#FBBF24]"></span>
+                <h6 className="font-heading font-bold text-[#FBBF24] text-xs sm:text-sm">Controlados</h6>
               </div>
-              <p className="text-2xl font-heading font-bold text-[#F8FAFC]">{foodCounts.controlled}</p>
-              <p className="text-xs text-[#A7AFBE] mt-1">alimentos</p>
+              <p className="text-xl sm:text-2xl font-heading font-bold text-[#F8FAFC]">{foodCounts.controlled}</p>
+              <p className="text-[10px] sm:text-xs text-[#A7AFBE] mt-0.5 sm:mt-1">alimentos</p>
             </button>
 
             {/* Prohibited Foods Card */}
             <button
               onClick={() => setActiveTab('prohibited')}
               className={cn(
-                "bg-[#14161B] border rounded-[12px] p-4 text-left transition-all",
+                "bg-[#14161B] border rounded-[10px] sm:rounded-[12px] p-2.5 sm:p-4 text-left transition-all",
                 activeTab === 'prohibited' 
                   ? "border-[#EF4444] bg-[rgba(239,68,68,0.1)]" 
                   : "border-[rgba(239,68,68,0.2)] hover:border-[rgba(239,68,68,0.4)]"
               )}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 rounded-full bg-[#EF4444]"></span>
-                <h6 className="font-heading font-bold text-[#EF4444] text-sm">Prohibidos</h6>
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#EF4444]"></span>
+                <h6 className="font-heading font-bold text-[#EF4444] text-xs sm:text-sm">Prohibidos</h6>
               </div>
-              <p className="text-2xl font-heading font-bold text-[#F8FAFC]">{foodCounts.prohibited}</p>
-              <p className="text-xs text-[#A7AFBE] mt-1">alimentos</p>
+              <p className="text-xl sm:text-2xl font-heading font-bold text-[#F8FAFC]">{foodCounts.prohibited}</p>
+              <p className="text-[10px] sm:text-xs text-[#A7AFBE] mt-0.5 sm:mt-1">alimentos</p>
             </button>
           </div>
 
@@ -600,9 +623,9 @@ export function DietView({ dietData, onEdit, editable = false, hideTitle = false
         </div>
       )}
 
-      {/* Daily Organization */}
+      {/* Daily Organization - order 2 after foods */}
       {dietData.daily_organization && (
-        <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[10px] sm:rounded-[12px] p-3 sm:p-4">
+        <div className={cn("bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[10px] sm:rounded-[12px] p-3 sm:p-4", compactOnMobile && "order-2")}>
           <h5 className="font-heading text-base sm:text-lg font-bold text-[#F8FAFC] mb-3 sm:mb-4">Organización Diaria</h5>
           <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-[#A7AFBE]">
             {dietData.daily_organization.morning && (
@@ -639,9 +662,9 @@ export function DietView({ dietData, onEdit, editable = false, hideTitle = false
         </div>
       )}
 
-      {/* Recommendations */}
+      {/* Recommendations - order 2 after foods */}
       {dietData.recommendations && (
-        <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[10px] sm:rounded-[12px] p-3 sm:p-4">
+        <div className={cn("bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[10px] sm:rounded-[12px] p-3 sm:p-4", compactOnMobile && "order-2")}>
           <h5 className="font-heading text-base sm:text-lg font-bold text-[#F8FAFC] mb-3 sm:mb-4">Recomendaciones</h5>
           <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-[#A7AFBE]">
             {dietData.recommendations.water && (

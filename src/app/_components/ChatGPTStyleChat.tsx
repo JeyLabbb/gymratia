@@ -813,57 +813,37 @@ export function ChatGPTStyleChat({ trainerSlug, chatId: initialChatId }: ChatGPT
 
   return (
     <div ref={containerRef} className="flex flex-col h-full bg-[#0A0A0B] relative">
-      {/* Header */}
-      <div className="border-b border-[rgba(255,255,255,0.08)] bg-[#14161B] px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+      {/* Header - sticky, compacto (nombre + rating en 1 línea) */}
+      <div className="sticky top-0 z-10 border-b border-[rgba(255,255,255,0.08)] bg-[#14161B] px-3 sm:px-6 py-2 sm:py-3 flex-shrink-0">
         <div className="flex items-center gap-2 sm:gap-3">
           {trainerAvatar ? (
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-[rgba(255,255,255,0.1)]">
-              <SafeImage
-                src={trainerAvatar}
-                alt={trainer.name}
-                className="w-full h-full object-cover"
-              />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-[rgba(255,255,255,0.1)] flex-shrink-0">
+              <SafeImage src={trainerAvatar} alt={trainer.name} className="w-full h-full object-cover" />
             </div>
           ) : (
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#FF2D2D] flex items-center justify-center text-white font-heading font-bold text-sm sm:text-lg">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#FF2D2D] flex items-center justify-center text-white font-heading font-bold text-sm sm:text-lg flex-shrink-0">
               {trainer.name[0]}
             </div>
           )}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <h2 className="font-heading text-base sm:text-lg font-bold text-[#F8FAFC] truncate">{trainer.name}</h2>
-            <p className="text-xs text-[#A7AFBE] line-clamp-1">{trainer.headline}</p>
-            {/* Componente de valoración sutil */}
-            <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5">
-              <span className="text-[9px] sm:text-[10px] text-[#6B7280] hidden sm:inline">Valora a este entrenador:</span>
-              <span className="text-[9px] sm:text-[10px] text-[#6B7280] sm:hidden">Valorar:</span>
-              <div className="flex items-center gap-0.5">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() => handleRatingClick(star)}
-                    onMouseEnter={() => setHoveredRating(star)}
-                    onMouseLeave={() => setHoveredRating(null)}
-                    disabled={submittingRating}
-                    className={cn(
-                      "transition-all duration-150",
-                      submittingRating && "opacity-50 cursor-not-allowed"
-                    )}
-                  >
-                    <Star
-                      className={cn(
-                        "w-3.5 h-3.5 transition-colors",
-                        (hoveredRating !== null && star <= hoveredRating) || (userRating !== null && star <= userRating)
-                          ? "text-[#FFD166] fill-current"
-                          : "text-[#4B5563] hover:text-[#FFD166]/60"
-                      )}
-                    />
-                  </button>
-                ))}
-              </div>
-              {userRating && (
-                <span className="text-[10px] text-[#9CA3AF] ml-1">
-                  ({userRating}/5)
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => handleRatingClick(star)}
+                  onMouseEnter={() => setHoveredRating(star)}
+                  onMouseLeave={() => setHoveredRating(null)}
+                  disabled={submittingRating}
+                  className={cn("transition-all", submittingRating && "opacity-50 cursor-not-allowed")}
+                >
+                  <Star className={cn("w-3 h-3 sm:w-3.5 sm:h-3.5", (hoveredRating !== null && star <= hoveredRating) || (userRating !== null && star <= userRating) ? "text-[#FFD166] fill-current" : "text-[#4B5563] hover:text-[#FFD166]/60")} />
+                </button>
+              ))}
+              {(trainerStats?.totalRatings ?? 0) > 0 && (
+                <span className="text-[9px] sm:text-[10px] text-[#9CA3AF]">
+                  ({(trainerStats?.averageRating ?? 0).toFixed(1)})
                 </span>
               )}
             </div>
@@ -1107,8 +1087,8 @@ export function ChatGPTStyleChat({ trainerSlug, chatId: initialChatId }: ChatGPT
         )}
       </div>
 
-      {/* Input Area - ChatGPT Style */}
-      <div className="border-t border-[rgba(255,255,255,0.08)] bg-[#14161B] px-4 py-4">
+      {/* Input Area - sticky arriba del bottom nav */}
+      <div className="sticky bottom-0 flex-shrink-0 border-t border-[rgba(255,255,255,0.08)] bg-[#14161B] px-4 py-3 sm:py-4">
         <div className="max-w-3xl mx-auto">
           <form
             onSubmit={(e) => {

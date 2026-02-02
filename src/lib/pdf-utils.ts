@@ -567,7 +567,8 @@ export function downloadMealPlanPDF(mealPlan: any[], weekStart: Date) {
 
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(50, 50, 50) // Dark gray
-        meal.foods.forEach((food: any) => {
+        const mealFoods = meal?.foods != null && Array.isArray(meal.foods) ? meal.foods : []
+        mealFoods.forEach((food: any) => {
           if (yPos > 270) {
             doc.addPage()
             yPos = 20

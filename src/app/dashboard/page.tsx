@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Zap
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { DashboardLayout } from '@/app/_components/DashboardLayout'
 import { LoadingScreen } from '@/app/_components/LoadingScreen'
 import SafeImage from '@/app/_components/SafeImage'
@@ -48,18 +49,26 @@ export default function DashboardPage() {
   const [trainerAvatars, setTrainerAvatars] = useState<Record<string, string>>({})
 
   useEffect(() => {
+    console.log('[Dashboard] auth state:', { authLoading, hasUser: !!user })
     if (!authLoading && !user) {
+      console.log('[Dashboard] no user -> redirect to login')
       router.push('/auth/login')
     }
   }, [user, authLoading, router])
 
   useEffect(() => {
+    console.log('[Dashboard] effect run:', { user: !!user, authLoading })
     if (user) {
+      console.log('[Dashboard] user exists -> loading data, setLoading(true)')
+      setLoading(true)
       loadChats()
       loadProfile()
       loadTrainerAvatars()
+    } else if (!authLoading) {
+      console.log('[Dashboard] no user + auth done -> setLoading(false)')
+      setLoading(false)
     }
-  }, [user])
+  }, [user, authLoading])
 
   const loadTrainerAvatars = async () => {
     try {
@@ -113,34 +122,42 @@ export default function DashboardPage() {
   }
 
   const loadProfile = async () => {
+    console.log('[Dashboard] loadProfile called, user:', !!user)
     if (!user) return
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
+      console.log('[Dashboard] loadProfile session:', !!session)
       if (!session) return
 
+      console.log('[Dashboard] loadProfile fetching /api/user/profile...')
       const response = await fetch('/api/user/profile', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
       })
 
+      console.log('[Dashboard] loadProfile response:', response.status)
       if (response.ok) {
         const data = await response.json()
         setProfile(data.profile)
       }
     } catch (error) {
-      console.error('Error loading profile:', error)
+      console.error('[Dashboard] loadProfile error:', error)
     } finally {
+      console.log('[Dashboard] loadProfile done -> setLoading(false)')
       setLoading(false)
     }
   }
 
+  console.log('[Dashboard] render check:', { authLoading, loading, hasUser: !!user })
   if (authLoading || loading) {
+    console.log('[Dashboard] -> LoadingScreen')
     return <LoadingScreen />
   }
 
   if (!user) {
+    console.log('[Dashboard] -> null (no user)')
     return null
   }
 
@@ -156,74 +173,78 @@ export default function DashboardPage() {
     <DashboardLayout activeSection="dashboard">
       <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-8">
         <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
-          {/* Welcome Header */}
-          <div className="bg-gradient-to-r from-[#FF2D2D]/10 to-[#FF2D2D]/5 border border-[#FF2D2D]/20 rounded-[12px] sm:rounded-[22px] p-4 sm:p-6">
-            <h1 className="font-heading text-xl sm:text-3xl font-bold text-[#F8FAFC] mb-1 sm:mb-2">
+          {/* Welcome Header - compact on mobile */}
+          <div className="bg-gradient-to-r from-[#FF2D2D]/10 to-[#FF2D2D]/5 border border-[#FF2D2D]/20 rounded-[12px] sm:rounded-[22px] p-3 sm:p-6">
+            <h1 className="font-heading text-lg sm:text-3xl font-bold text-[#F8FAFC] mb-0.5 sm:mb-2">
               ¡Hola, {displayName}! 👋
             </h1>
-            <p className="text-xs sm:text-base text-[#A7AFBE]">
+            <p className="text-xs sm:text-base text-[#A7AFBE] hidden sm:block">
               Continúa tu transformación. Aquí tienes un resumen de tu progreso.
             </p>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
+          {/* Stats - mini-cards grid on mobile (2-3 per row) */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-6">
             <Link
               href="/dashboard/profile"
-              className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
+              className={cn(
+                "rounded-[12px] sm:rounded-[22px] p-3 sm:p-6 hover:border-[#FF2D2D]/50 transition-all group",
+                "bg-[#14161B] border border-[rgba(255,255,255,0.08)]",
+                "hover:shadow-[0_0_40px_rgba(255,45,45,0.15)]"
+              )}
             >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center group-hover:bg-[#FF2D2D]/30 transition-colors">
-                  <TrendingUp className="w-6 h-6 text-[#FF2D2D]" />
+              <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
+                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#FF2D2D]/30 transition-colors">
+                  <TrendingUp className="w-4 h-4 sm:w-6 sm:h-6 text-[#FF2D2D]" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-2xl font-heading font-bold text-[#F8FAFC]">
+                <div className="flex-1 min-w-0">
+                  <p className="text-base sm:text-2xl font-heading font-bold text-[#F8FAFC] truncate">
                     {profile?.weight_kg ? `${profile.weight_kg} kg` : '--'}
                   </p>
-                  <p className="text-sm text-[#A7AFBE]">Peso actual</p>
+                  <p className="text-[10px] sm:text-sm text-[#A7AFBE] truncate">Peso</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-sm text-[#FF2D2D] group-hover:gap-3 transition-all">
-                <span>Ver progreso</span>
-                <ArrowRight className="w-4 h-4" />
+              <div className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-sm text-[#FF2D2D] group-hover:gap-3 transition-all">
+                <span className="truncate">Progreso</span>
+                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
               </div>
             </Link>
 
-            <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center">
-                  <MessageCircle className="w-6 h-6 text-[#FF2D2D]" />
+            <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-3 sm:p-6">
+              <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
+                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center flex-shrink-0">
+                  <MessageCircle className="w-4 h-4 sm:w-6 sm:h-6 text-[#FF2D2D]" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-2xl font-heading font-bold text-[#F8FAFC]">{activeTrainers}</p>
-                  <p className="text-sm text-[#A7AFBE]">Entrenadores activos</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base sm:text-2xl font-heading font-bold text-[#F8FAFC]">{activeTrainers}</p>
+                  <p className="text-[10px] sm:text-sm text-[#A7AFBE] truncate">Entrenadores</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center">
+            <div className="col-span-2 sm:col-span-1 bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-3 sm:p-6">
+              <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
+                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center flex-shrink-0">
                   {hasActivePlan ? (
-                    <Award className="w-6 h-6 text-[#FF2D2D]" />
+                    <Award className="w-4 h-4 sm:w-6 sm:h-6 text-[#FF2D2D]" />
                   ) : (
-                    <Target className="w-6 h-6 text-[#A7AFBE]" />
+                    <Target className="w-4 h-4 sm:w-6 sm:h-6 text-[#A7AFBE]" />
                   )}
                 </div>
-                <div className="flex-1">
-                  <p className="text-2xl font-heading font-bold text-[#F8FAFC]">
+                <div className="flex-1 min-w-0">
+                  <p className="text-base sm:text-2xl font-heading font-bold text-[#F8FAFC] truncate">
                     {hasActivePlan ? 'Activo' : 'Pendiente'}
                   </p>
-                  <p className="text-sm text-[#A7AFBE]">Plan de entrenamiento</p>
+                  <p className="text-[10px] sm:text-sm text-[#A7AFBE] truncate">Plan entreno</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Trainers Section - Mis Chats */}
+          {/* Trainers Section - compact on mobile */}
           <div>
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="font-heading text-lg sm:text-2xl font-bold text-[#F8FAFC]">Mis Entrenadores</h2>
+            <div className="flex items-center justify-between mb-3 sm:mb-6">
+              <h2 className="font-heading text-base sm:text-2xl font-bold text-[#F8FAFC]">Mis Entrenadores</h2>
               <Link
                 href="/trainers"
                 className="text-xs sm:text-sm text-[#FF2D2D] hover:text-[#FF3D3D] transition-colors flex items-center gap-1"
@@ -232,7 +253,7 @@ export default function DashboardPage() {
                 <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
               </Link>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-6">
               {personas.filter(t => t.is_active !== false).map((trainer) => {
                 const chat = getTrainerChat(trainer.slug as 'edu' | 'carolina' | 'jey')
                 const trainerAvatar = trainerAvatars[trainer.slug]
@@ -242,7 +263,7 @@ export default function DashboardPage() {
                     trainerSlug={trainer.slug}
                     trainerName={trainer.name}
                     variant="link"
-                    className="block bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-4 sm:p-6 hover:border-[#FF2D2D]/50 transition-all group"
+                    className="block bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-3 sm:p-6 hover:border-[#FF2D2D]/50 transition-all group"
                   >
                     <div className="flex items-start gap-3 sm:gap-4">
                       {trainerAvatar ? (
@@ -291,64 +312,64 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Quick Actions */}
+          {/* Quick Actions - mini-cards grid on mobile */}
           <div>
-            <h2 className="font-heading text-2xl font-bold text-[#F8FAFC] mb-6">Accesos Rápidos</h2>
-            <div className="grid md:grid-cols-3 gap-6">
+            <h2 className="font-heading text-base sm:text-2xl font-bold text-[#F8FAFC] mb-3 sm:mb-6">Accesos Rápidos</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-6">
               <Link
                 href="/dashboard/profile"
-                className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
+                className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-3 sm:p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
               >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center group-hover:bg-[#FF2D2D]/30 transition-colors">
-                    <User className="w-6 h-6 text-[#FF2D2D]" />
+                <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
+                  <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#FF2D2D]/30 transition-colors">
+                    <User className="w-4 h-4 sm:w-6 sm:h-6 text-[#FF2D2D]" />
                   </div>
-                  <div>
-                    <h3 className="font-heading text-lg font-bold text-[#F8FAFC]">Mi Perfil</h3>
-                    <p className="text-xs text-[#A7AFBE]">Datos y progreso</p>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-heading text-sm sm:text-lg font-bold text-[#F8FAFC] truncate">Perfil</h3>
+                    <p className="text-[10px] sm:text-xs text-[#A7AFBE] hidden sm:block">Datos y progreso</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-[#FF2D2D] group-hover:gap-3 transition-all">
-                  <span>Ver perfil</span>
-                  <ArrowRight className="w-4 h-4" />
+                <div className="flex items-center gap-1 text-[10px] sm:text-sm text-[#FF2D2D] group-hover:gap-3 transition-all">
+                  <span>Ver</span>
+                  <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                 </div>
               </Link>
 
               <Link
                 href="/dashboard/workouts"
-                className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
+                className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-3 sm:p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
               >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center group-hover:bg-[#FF2D2D]/30 transition-colors">
-                    <Dumbbell className="w-6 h-6 text-[#FF2D2D]" />
+                <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
+                  <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#FF2D2D]/30 transition-colors">
+                    <Dumbbell className="w-4 h-4 sm:w-6 sm:h-6 text-[#FF2D2D]" />
                   </div>
-                  <div>
-                    <h3 className="font-heading text-lg font-bold text-[#F8FAFC]">Entrenamientos</h3>
-                    <p className="text-xs text-[#A7AFBE]">Rutinas y planes</p>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-heading text-sm sm:text-lg font-bold text-[#F8FAFC] truncate">Entrenos</h3>
+                    <p className="text-[10px] sm:text-xs text-[#A7AFBE] hidden sm:block">Rutinas y planes</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-[#FF2D2D] group-hover:gap-3 transition-all">
-                  <span>Ver rutinas</span>
-                  <ArrowRight className="w-4 h-4" />
+                <div className="flex items-center gap-1 text-[10px] sm:text-sm text-[#FF2D2D] group-hover:gap-3 transition-all">
+                  <span>Ver</span>
+                  <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                 </div>
               </Link>
 
               <Link
                 href="/dashboard/diet"
-                className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
+                className="col-span-2 md:col-span-1 bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[12px] sm:rounded-[22px] p-3 sm:p-6 hover:border-[#FF2D2D]/50 transition-all hover:shadow-[0_0_40px_rgba(255,45,45,0.15)] group"
               >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center group-hover:bg-[#FF2D2D]/30 transition-colors">
-                    <UtensilsCrossed className="w-6 h-6 text-[#FF2D2D]" />
+                <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
+                  <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[#FF2D2D]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#FF2D2D]/30 transition-colors">
+                    <UtensilsCrossed className="w-4 h-4 sm:w-6 sm:h-6 text-[#FF2D2D]" />
                   </div>
-                  <div>
-                    <h3 className="font-heading text-lg font-bold text-[#F8FAFC]">Dieta</h3>
-                    <p className="text-xs text-[#A7AFBE]">Nutrición y productos</p>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-heading text-sm sm:text-lg font-bold text-[#F8FAFC] truncate">Dieta</h3>
+                    <p className="text-[10px] sm:text-xs text-[#A7AFBE] hidden sm:block">Nutrición</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-[#FF2D2D] group-hover:gap-3 transition-all">
-                  <span>Ver dieta</span>
-                  <ArrowRight className="w-4 h-4" />
+                <div className="flex items-center gap-1 text-[10px] sm:text-sm text-[#FF2D2D] group-hover:gap-3 transition-all">
+                  <span>Ver</span>
+                  <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                 </div>
               </Link>
             </div>

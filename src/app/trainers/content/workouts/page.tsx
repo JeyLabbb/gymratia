@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/_components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Dumbbell, Edit2, Trash2, FileText } from 'lucide-react'
+import { Plus, Dumbbell, Edit2, Trash2, FileText } from 'lucide-react'
 
 export default function TrainerWorkoutsPage() {
   const { user, loading: authLoading } = useAuth()
@@ -185,18 +185,10 @@ export default function TrainerWorkoutsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#050509] via-[#050509] to-[#0A0A0B]">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            href="/trainers/dashboard"
-            className="inline-flex items-center gap-2 text-sm text-[#9CA3AF] hover:text-[#F8FAFC] transition-colors mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Volver al dashboard
-          </Link>
-          <h1 className="font-heading text-3xl md:text-4xl font-bold text-[#F8FAFC] mb-2">
+    <div className="flex-1 overflow-y-auto">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+        <div className="mb-6">
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#F8FAFC] mb-1">
             Define tu metodología de entrenamiento
           </h1>
           <p className="text-sm text-[#A7AFBE]">
