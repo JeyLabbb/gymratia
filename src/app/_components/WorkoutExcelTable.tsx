@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Plus, Save, Edit2, Trash2, Download, AlertTriangle, X, Trophy, Flame, Target, TrendingUp, Zap, ChevronRight, ChevronLeft, Calendar, Info } from 'lucide-react'
+import { Plus, Save, Edit2, Trash2, Download, AlertTriangle, X, Flame, TrendingUp, Zap, ChevronRight, ChevronLeft, Calendar, Info } from 'lucide-react'
 import { useToast } from './Toast'
 import * as XLSX from 'xlsx'
 
@@ -27,6 +27,7 @@ type Exercise = {
 
 type ExerciseLog = {
   id: string
+  workout_id?: string
   exercise_name: string
   date: string
   sets: Array<{
@@ -44,6 +45,8 @@ type WorkoutExcelTableProps = {
   workout: Workout
   onUpdate: () => void
   activeTrainerSlug?: 'edu' | 'carolina' | 'jey' | string | null
+  /** Related workout IDs (same program, e.g. old "Semana X") - logs are merged for one table */
+  relatedWorkoutIds?: string[]
   weekNumber?: number
   onWeekChange?: (weekNumber: number) => void
 }
@@ -54,14 +57,15 @@ type Warning = {
   severity: 'low' | 'medium' | 'high'
 }
 
-export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNumber = 1, onWeekChange }: WorkoutExcelTableProps) {
+const MAX_SESSIONS = 20
+
+export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relatedWorkoutIds = [], weekNumber = 1, onWeekChange }: WorkoutExcelTableProps) {
   const toast = useToast()
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [logs, setLogs] = useState<ExerciseLog[]>([])
-  // Always use today's date for logging
-  const selectedDate = new Date().toISOString().split('T')[0]
   const todayRowRef = useRef<HTMLTableRowElement>(null)
-  const [editingCell, setEditingCell] = useState<{ exercise: string; date: string; set: number; field: string } | null>(null)
+  const todayColRef = useRef<HTMLTableCellElement>(null)
+  const [editingCell, setEditingCell] = useState<{ exercise: string; sessionDate: string; set: number; field: string } | null>(null)
   const [cellValue, setCellValue] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null)
@@ -70,22 +74,24 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
   const [showWarnings, setShowWarnings] = useState(false)
   const [infoTooltip, setInfoTooltip] = useState<{ type: 'reps' | 'tempo' | 'rest' | null; x: number; y: number }>({ type: null, x: 0, y: 0 })
   const tableRef = useRef<HTMLTableElement>(null)
+  // Fixed session count: NO auto-creation. Only 3 columns (Semana 1, 2, Próx). Increase only via "+" button.
+  const [sessionCount, setSessionCount] = useState(3)
 
   const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
   useEffect(() => {
     loadWorkoutData()
     loadLogs()
-  }, [workout.id])
+  }, [workout.id, relatedWorkoutIds.join(',')])
 
-  // Auto-scroll to today's day when table loads
+  // Auto-scroll to rightmost column (próxima sesión) when table loads
   useEffect(() => {
-    if (todayRowRef.current && !loading) {
+    if (!loading && todayColRef.current) {
       setTimeout(() => {
-        todayRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 300)
+        todayColRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'end' })
+      }, 400)
     }
-  }, [loading, exercises])
+  }, [loading])
 
   const loadWorkoutData = () => {
     if (!workout.workout_data) {
@@ -126,10 +132,12 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      const response = await fetch(`/api/exercise-logs?workoutId=${workout.id}`, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
+      const ids = [workout.id, ...relatedWorkoutIds].filter((id, i, arr) => arr.indexOf(id) === i)
+      const url = ids.length > 1
+        ? `/api/exercise-logs?workoutIds=${ids.join(',')}`
+        : `/api/exercise-logs?workoutId=${workout.id}`
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
       })
 
       if (response.ok) {
@@ -141,26 +149,29 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
     }
   }
 
-  const getLogForExercise = (exerciseName: string, date: string) => {
-    return logs.find(log => log.exercise_name === exerciseName && log.date === date)
+  const getLogForExercise = (exerciseName: string, date: string): ExerciseLog | undefined => {
+    const matches = logs.filter(log => log.exercise_name === exerciseName && log.date === date)
+    if (matches.length === 0) return undefined
+    if (matches.length === 1) return matches[0]
+    return matches.find(m => m.workout_id === workout.id) || matches[0]
   }
 
-  const handleCellClick = (exercise: string, date: string, set: number, field: string) => {
-    const log = getLogForExercise(exercise, date)
+  const handleCellClick = (e: React.MouseEvent | React.PointerEvent, exercise: string, sessionDate: string, set: number, field: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const log = getLogForExercise(exercise, sessionDate)
     const setData = log?.sets?.find(s => s.set_number === set)
-    
     let value = ''
     if (field === 'reps') value = setData?.reps?.toString() || ''
     if (field === 'weight') value = setData?.weight_kg?.toString() || ''
-
-    setEditingCell({ exercise, date, set, field })
+    setEditingCell({ exercise, sessionDate, set, field })
     setCellValue(value)
   }
 
   const handleCellSave = async () => {
     if (!editingCell) return
 
-    const { exercise, date, set, field } = editingCell
+    const { exercise, sessionDate: date, set, field } = editingCell
     const value = cellValue.trim()
     
     // Clear editing state immediately to prevent UI bugs
@@ -191,7 +202,8 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
             sets: [{
               set_number: set,
               [field === 'reps' ? 'reps' : 'weight_kg']: value ? Number(value) : null
-            }]
+            }],
+            ...(relatedWorkoutIds.length > 0 && { related_workout_ids: relatedWorkoutIds })
           }),
         })
 
@@ -579,8 +591,24 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
     )
   }
 
-  // Use only selectedDate (today) for logging - no need for multiple date columns
-  // The table will show days of the week, and user scrolls to today's day
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  const getSessionsForExercise = (exerciseName: string): ExerciseLog[] => {
+    return logs
+      .filter(l => l.exercise_name === exerciseName)
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }
+
+  const handleAddSession = () => {
+    setSessionCount(prev => Math.min(prev + 1, MAX_SESSIONS))
+  }
+
+  const getDateForEmptySession = (sessionIdx: number): string => {
+    const d = new Date()
+    const offset = sessionIdx - (sessionCount - 1)
+    d.setDate(d.getDate() + offset)
+    return d.toISOString().split('T')[0]
+  }
 
   // Group exercises by day
   const exercisesByDay = exercises.reduce((acc, exercise) => {
@@ -617,6 +645,15 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
       .replace(/[\u0300-\u036f]/g, '') // Remove accents
   }
 
+  const abbreviateDay = (day: string) => {
+    const m: Record<string, string> = {
+      lunes: 'Lun', martes: 'Mar', miércoles: 'Mié', miercoles: 'Mié', jueves: 'Jue',
+      viernes: 'Vie', sábado: 'Sáb', sabado: 'Sáb', domingo: 'Dom'
+    }
+    const firstWord = day.toLowerCase().trim().split(/[\s-]/)[0] || ''
+    return m[firstWord] || day.slice(0, 3)
+  }
+
   const todayDayName = getTodayDayName()
   const normalizedTodayDayName = normalizeDayName(todayDayName)
   
@@ -628,16 +665,6 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
   
   const isTodayRestDay = !isTodayWorkoutDay && daysOfWeek.includes(todayDayName)
   
-  // Debug log (remove in production if needed)
-  console.log('Day detection:', {
-    todayDayName,
-    normalizedTodayDayName,
-    exercisesByDayKeys: Object.keys(exercisesByDay),
-    normalizedExercisesByDayKeys: Object.keys(exercisesByDay).map(day => normalizeDayName(day)),
-    isTodayWorkoutDay,
-    isTodayRestDay
-  })
-
   // Helper function to find the best record for an exercise (highest weight, then highest reps, then first)
   const getBestRecord = (exerciseName: string): { date: string; set: number; weight: number; reps: number } | null => {
     const exerciseLogs = logs.filter(log => log.exercise_name === exerciseName)
@@ -672,7 +699,7 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
   }
 
   return (
-    <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-6 space-y-4">
+    <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[16px] sm:rounded-[22px] p-4 sm:p-6 space-y-4 overflow-hidden">
       {/* Info Tooltip */}
       {infoTooltip.type && (
         <>
@@ -727,23 +754,37 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
         </>
       )}
 
-      {/* Rest Day Message */}
+      {/* Rest Day Message - compact on mobile (1 line + expand), full on desktop */}
       {isTodayRestDay && (
-        <div className="bg-gradient-to-r from-[#3B82F6]/20 to-[#3B82F6]/10 border-2 border-[#3B82F6]/40 rounded-[16px] p-5 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-[12px] bg-[#3B82F6]/20">
-              <Calendar className="w-6 h-6 text-[#3B82F6]" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-heading text-lg font-bold text-[#F8FAFC] mb-1">
-                ¡Hoy es tu día de descanso!
-              </h4>
-              <p className="text-sm text-[#A7AFBE]">
+        <>
+          <div className="sm:hidden bg-gradient-to-r from-[#3B82F6]/20 to-[#3B82F6]/10 border-2 border-[#3B82F6]/40 rounded-[12px] p-3 mb-4">
+            <details className="group">
+              <summary className="flex items-center gap-2 cursor-pointer list-none">
+                <div className="p-1.5 rounded-[10px] bg-[#3B82F6]/20 flex-shrink-0">
+                  <Calendar className="w-4 h-4 text-[#3B82F6]" />
+                </div>
+                <h4 className="font-heading text-sm font-bold text-[#F8FAFC] flex-1">Hoy: descanso</h4>
+                <ChevronRight className="w-4 h-4 text-[#A7AFBE] group-open:rotate-90 transition-transform" />
+              </summary>
+              <p className="text-xs text-[#A7AFBE] mt-2 pl-11">
                 Aprovecha para recuperarte, descansar bien y volver más fuerte mañana. El descanso es parte del entrenamiento. 💪
               </p>
+            </details>
+          </div>
+          <div className="hidden sm:block bg-gradient-to-r from-[#3B82F6]/20 to-[#3B82F6]/10 border-2 border-[#3B82F6]/40 rounded-[16px] p-5 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-[12px] bg-[#3B82F6]/20">
+                <Calendar className="w-6 h-6 text-[#3B82F6]" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-heading text-lg font-bold text-[#F8FAFC] mb-1">¡Hoy es tu día de descanso!</h4>
+                <p className="text-sm text-[#A7AFBE]">
+                  Aprovecha para recuperarte, descansar bien y volver más fuerte mañana. El descanso es parte del entrenamiento. 💪
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Warnings */}
@@ -779,23 +820,23 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
       )}
 
       {/* Header with controls */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-[12px] bg-gradient-to-br from-[#FF2D2D]/20 to-[#FF2D2D]/10 border border-[#FF2D2D]/30">
             <TrendingUp className="w-5 h-5 text-[#FF2D2D]" />
           </div>
           <div>
-            <h3 className="font-heading text-xl font-bold text-[#F8FAFC] flex items-center gap-2">
+            <h3 className="font-heading text-lg sm:text-xl font-bold text-[#F8FAFC] flex items-center gap-2">
               Seguimiento de Progreso
               <Flame className="w-4 h-4 text-[#FF2D2D]" />
             </h3>
             <p className="text-xs text-[#7B8291] mt-0.5">Registra tus entrenamientos y supera tus límites</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={handleExportToExcel}
-            className="flex items-center gap-2 px-4 py-2 rounded-[10px] bg-gradient-to-r from-[#FF2D2D]/20 to-[#FF2D2D]/10 border border-[#FF2D2D]/30 text-[#F8FAFC] hover:from-[#FF2D2D]/30 hover:to-[#FF2D2D]/20 hover:border-[#FF2D2D]/50 transition-all text-sm font-medium shadow-lg shadow-[#FF2D2D]/10"
+            className="flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] rounded-[10px] bg-gradient-to-r from-[#FF2D2D]/20 to-[#FF2D2D]/10 border border-[#FF2D2D]/30 text-[#F8FAFC] hover:from-[#FF2D2D]/30 hover:to-[#FF2D2D]/20 hover:border-[#FF2D2D]/50 transition-all text-sm font-medium shadow-lg shadow-[#FF2D2D]/10 touch-manipulation"
             title="Exportar a Excel"
           >
             <Download className="w-4 h-4" />
@@ -803,7 +844,7 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
           </button>
           <button
             onClick={handleExportToCSV}
-            className="flex items-center gap-2 px-4 py-2 rounded-[10px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#F8FAFC] hover:bg-[#24282F] hover:border-[#FF2D2D]/30 transition-all text-sm font-medium"
+            className="flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] rounded-[10px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#F8FAFC] hover:bg-[#24282F] hover:border-[#FF2D2D]/30 transition-all text-sm font-medium touch-manipulation"
             title="Exportar a CSV"
           >
             <Download className="w-4 h-4" />
@@ -812,25 +853,21 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
         </div>
       </div>
 
-      {/* Excel-like Table */}
-      <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full border-collapse">
+      {/* Excel-like Table - scroll-x-touch enables proper horizontal scroll on iOS */}
+      <div className="scroll-x-touch -mx-2 sm:-mx-4 px-2 sm:px-4 rounded-xl">
+        <table ref={tableRef} className="w-full border-collapse text-sm" style={{ minWidth: `${340 + sessionCount * 72}px` }}>
           <thead>
             <tr className="border-b-2 border-[#FF2D2D]/30 bg-gradient-to-r from-[#1A1D24] via-[#1A1D24] to-[#1A1D24]">
-              <th className="text-left p-2 sm:p-3 text-xs sm:text-sm font-medium text-[#7B8291] sticky left-0 bg-[#1A1D24] z-10 min-w-[60px] sm:min-w-[80px] uppercase tracking-wider">
-                <div className="flex items-center gap-1">
-                  <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#7B8291]" />
-                  <span className="hidden sm:inline">Día</span>
-                </div>
+              <th className="text-center p-0.5 sm:p-1 text-[10px] sm:text-xs md:text-sm font-medium text-[#7B8291] sticky left-0 bg-[#1A1D24] z-20 w-[20px] sm:w-[26px] md:w-[34px] min-w-[20px] sm:min-w-[26px] md:min-w-[34px] max-w-[26px] md:max-w-[34px] uppercase tracking-wider shadow-[4px_0_8px_-2px_rgba(0,0,0,0.3)]" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(-180deg)' }}>
+                <span className="inline-block whitespace-nowrap py-1 text-[9px] sm:text-[10px] md:text-xs font-semibold">Día</span>
               </th>
-              <th className="text-left p-3 sm:p-4 text-sm font-bold text-[#F8FAFC] sticky left-[60px] sm:left-[80px] bg-[#1A1D24] z-10 min-w-[180px] sm:min-w-[200px] uppercase tracking-wider">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-[#FF2D2D]" />
-                  Ejercicio
-                </div>
+              <th className="text-left p-1 sm:p-3 text-xs sm:text-sm font-bold text-[#F8FAFC] sticky left-[20px] sm:left-[26px] md:left-[34px] bg-[#1A1D24] z-20 w-[100px] sm:w-[140px] min-w-[100px] sm:min-w-[140px] max-w-[140px] sm:max-w-[180px] uppercase tracking-wider shadow-[4px_0_8px_-2px_rgba(0,0,0,0.3)]">
+                <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-[#FF2D2D] inline mr-1" />
+                <span className="hidden sm:inline">Ejercicio</span>
+                <span className="sm:hidden">Ej.</span>
               </th>
-              <th className="text-center p-3 sm:p-4 text-xs sm:text-sm font-bold text-[#F8FAFC] min-w-[70px] sm:min-w-[80px] uppercase tracking-wider">Series</th>
-              <th className="text-center p-3 sm:p-4 text-xs sm:text-sm font-bold text-[#F8FAFC] min-w-[90px] sm:min-w-[100px] uppercase tracking-wider">
+              <th className="text-center p-1.5 sm:p-3 text-[10px] sm:text-xs font-bold text-[#F8FAFC] min-w-[44px] sm:min-w-[60px] uppercase tracking-wider">Series</th>
+              <th className="text-center p-1.5 sm:p-3 text-[10px] sm:text-xs font-bold text-[#F8FAFC] min-w-[48px] sm:min-w-[70px] uppercase tracking-wider" scope="col">
                 <div className="flex items-center justify-center gap-1 sm:gap-1.5">
                   <span className="hidden sm:inline">Reps Obj.</span>
                   <span className="sm:hidden">Reps</span>
@@ -846,8 +883,8 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
                   </button>
                 </div>
               </th>
-              <th className="text-center p-3 sm:p-4 text-xs sm:text-sm font-bold text-[#F8FAFC] min-w-[80px] sm:min-w-[100px] uppercase tracking-wider">
-                <div className="flex items-center justify-center gap-1 sm:gap-1.5">
+              <th className="text-center p-1.5 sm:p-3 text-[10px] sm:text-xs font-bold text-[#F8FAFC] min-w-[48px] sm:min-w-[70px] uppercase tracking-wider">
+                <div className="flex items-center justify-center gap-0.5 sm:gap-1.5">
                   Tempo
                   <button
                     onClick={(e) => {
@@ -861,8 +898,8 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
                   </button>
                 </div>
               </th>
-              <th className="text-center p-3 sm:p-4 text-xs sm:text-sm font-bold text-[#F8FAFC] min-w-[80px] sm:min-w-[100px] uppercase tracking-wider">
-                <div className="flex items-center justify-center gap-1 sm:gap-1.5">
+              <th className="text-center p-1.5 sm:p-3 text-[10px] sm:text-xs font-bold text-[#F8FAFC] min-w-[48px] sm:min-w-[70px] uppercase tracking-wider">
+                <div className="flex items-center justify-center gap-0.5 sm:gap-1.5">
                   <span className="hidden sm:inline">Descanso</span>
                   <span className="sm:hidden">Desc.</span>
                   <button
@@ -877,18 +914,29 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
                   </button>
                 </div>
               </th>
-              {/* Columns for each series - dynamically based on max sets */}
-              {Array.from({ length: Math.max(...exercises.map(e => e.sets), 4) }).map((_, seriesIdx) => {
-                const seriesNum = seriesIdx + 1
+              {/* Columnas por sesión: Semana 1, 2, 3... scroll horizontal para más */}
+              {Array.from({ length: sessionCount }).map((_, idx) => {
+                const isLast = idx === sessionCount - 1
                 return (
-                  <th key={seriesNum} className="text-center p-1.5 sm:p-2 text-xs font-bold text-[#F8FAFC] min-w-[110px] sm:min-w-[140px] uppercase tracking-wider border-l border-[rgba(255,255,255,0.05)]">
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-[9px] sm:text-[10px]">S{seriesNum}</span>
-                      <div className="flex gap-0.5 sm:gap-1 text-[8px] sm:text-[9px] font-normal text-[#7B8291]">
-                        <span>R</span>
-                        <span>×</span>
-                        <span>P</span>
-                      </div>
+                  <th
+                    key={idx}
+                    ref={isLast ? todayColRef : undefined}
+                    className={`text-center p-1 sm:p-2 text-[10px] sm:text-xs font-bold min-w-[72px] sm:min-w-[100px] w-[72px] sm:w-auto uppercase tracking-wider border-l border-[rgba(255,255,255,0.05)] ${
+                      isLast ? 'text-[#FF2D2D] bg-[#FF2D2D]/10' : 'text-[#F8FAFC]'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-1">
+                      <div>{isLast ? 'Próx.' : (<><span className="hidden sm:inline">Semana {idx + 1}</span><span className="sm:hidden">Sem {idx + 1}</span></>)}</div>
+                      {isLast && sessionCount < MAX_SESSIONS && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleAddSession() }}
+                          className="flex items-center justify-center w-7 h-7 rounded-lg border-2 border-[#FF2D2D]/50 bg-[#1A1D24] hover:bg-[#FF2D2D]/20 hover:border-[#FF2D2D] transition-colors touch-manipulation mt-1"
+                          title="Añadir siguiente semana"
+                          aria-label="Añadir siguiente semana"
+                        >
+                          <Plus className="w-4 h-4 text-[#FF2D2D]" />
+                        </button>
+                      )}
                     </div>
                   </th>
                 )
@@ -900,13 +948,13 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
               const dayExercises = exercisesByDay[day] || []
               return dayExercises.map((exercise, exerciseIdx) => {
                 const isFirstExerciseOfDay = exerciseIdx === 0
+                const isLastExerciseOfDay = exerciseIdx === dayExercises.length - 1
                 const rowSpan = dayExercises.length
                 // Check if day name contains today's day name (e.g., "Martes - Pull" contains "Martes")
                 const normalizedDay = normalizeDayName(day)
                 const isToday = normalizedDay.includes(normalizedTodayDayName) || normalizedTodayDayName.includes(normalizedDay)
                 
                 // Get log for today's date (selectedDate)
-                const log = getLogForExercise(exercise.name, selectedDate)
                 const bestRecord = getBestRecord(exercise.name)
                 
                 return (
@@ -914,149 +962,167 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
                     key={`${day}-${exercise.name}-${exerciseIdx}`} 
                     ref={isToday && isFirstExerciseOfDay ? todayRowRef : undefined}
                     className={`border-b transition-all group relative ${
+                      isLastExerciseOfDay ? 'border-b-2 border-b-[#FF2D2D]/25' : 'border-b border-[rgba(255,255,255,0.05)]'
+                    } ${
                       isToday 
                         ? 'bg-gradient-to-r from-[#FF2D2D]/15 to-[#FF2D2D]/5 border-l-4 border-l-[#FF2D2D] hover:from-[#FF2D2D]/20 hover:to-[#FF2D2D]/10' 
-                        : 'border-[rgba(255,255,255,0.05)] hover:bg-gradient-to-r hover:from-[#1A1D24]/80 hover:to-[#1A1D24]/40'
+                        : 'hover:bg-gradient-to-r hover:from-[#1A1D24]/80 hover:to-[#1A1D24]/40'
                     }`}
                   >
                     {isFirstExerciseOfDay && (
                       <td 
                         rowSpan={rowSpan} 
-                        className={`p-4 text-sm font-bold sticky left-0 z-10 align-top border-r-2 transition-all ${
+                        className={`p-0.5 sm:p-1 text-[9px] sm:text-[10px] md:text-xs font-bold sticky left-0 z-20 align-middle border-r-2 transition-all w-[20px] sm:w-[26px] md:w-[34px] min-w-[20px] sm:min-w-[26px] md:min-w-[34px] max-w-[26px] md:max-w-[34px] ${
                           isToday
                             ? 'bg-gradient-to-b from-[#FF2D2D]/20 to-[#FF2D2D]/10 border-r-[#FF2D2D]/40 text-[#F8FAFC]'
                             : 'bg-gradient-to-b from-[#14161B] to-[#0F1115] border-[#FF2D2D]/20 text-[#F8FAFC]'
                         }`}
+                        title={day}
                       >
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${isToday ? 'bg-[#FF2D2D] animate-pulse' : 'bg-[#FF2D2D] animate-pulse'}`}></div>
-                          <span className={`font-heading text-base ${isToday ? 'text-[#FF2D2D] font-extrabold' : ''}`}>
-                            {day}
-                            {isToday && <span className="ml-2 text-xs text-[#FF2D2D]/70">(HOY)</span>}
+                        <div className="flex flex-col items-center justify-center min-h-[40px]" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(-180deg)' }}>
+                          <span className={`inline-block whitespace-nowrap py-1 font-heading ${isToday ? 'text-[#FF2D2D] font-extrabold' : ''}`}>
+                            {day}{isToday && ' (Hoy)'}
                           </span>
                         </div>
                       </td>
                     )}
-                    <td className="p-4 text-sm font-semibold text-[#F8FAFC] sticky left-[120px] bg-[#14161B] z-10 group-hover:bg-[#1A1D24]/50 transition-colors">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-1 h-6 rounded-full bg-gradient-to-b from-[#FF2D2D] to-[#FF2D2D]/50"></div>
-                          <span className="font-medium">{exercise.name}</span>
+                    <td className="p-1 sm:p-3 text-xs sm:text-sm font-semibold text-[#F8FAFC] sticky left-[20px] sm:left-[26px] md:left-[34px] bg-[#14161B] z-20 w-[100px] sm:w-[140px] min-w-[100px] sm:min-w-[140px] max-w-[160px] sm:max-w-[180px] group-hover:bg-[#1A1D24]/50 transition-colors shadow-[4px_0_8px_-2px_rgba(0,0,0,0.3)]" title={exercise.name}>
+                      <div className="flex items-center justify-between gap-1 sm:gap-2">
+                        <div className="flex items-center gap-1 min-w-0 flex-1">
+                          <div className="w-0.5 sm:w-1 h-3 sm:h-5 rounded-full bg-gradient-to-b from-[#FF2D2D] to-[#FF2D2D]/50 flex-shrink-0"></div>
+                          <span className="font-medium text-[11px] sm:text-sm break-words line-clamp-2 sm:line-clamp-1">{exercise.name}</span>
                         </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-0.5 sm:gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 hidden sm:flex">
                           <button
                             onClick={() => setEditingExercise(exercise)}
-                            className="p-1.5 rounded-[6px] hover:bg-[#24282F] hover:border border-[#FF2D2D]/30 transition-all"
+                            className="p-1 sm:p-1.5 rounded-[6px] hover:bg-[#24282F] hover:border border-[#FF2D2D]/30 transition-all touch-manipulation"
                             title="Editar ejercicio"
                           >
-                            <Edit2 className="w-3.5 h-3.5 text-[#A7AFBE] hover:text-[#FF2D2D] transition-colors" />
+                            <Edit2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#A7AFBE] hover:text-[#FF2D2D] transition-colors" />
                           </button>
                           <button
                             onClick={() => handleDeleteExercise(exercise.name)}
-                            className="p-1.5 rounded-[6px] hover:bg-[#24282F] hover:border border-[#EF4444]/30 transition-all"
+                            className="p-1 sm:p-1.5 rounded-[6px] hover:bg-[#24282F] hover:border border-[#EF4444]/30 transition-all touch-manipulation"
                             title="Eliminar ejercicio"
                           >
-                            <Trash2 className="w-3.5 h-3.5 text-[#EF4444]" />
+                            <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#EF4444]" />
                           </button>
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 text-sm text-center">
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-[8px] bg-gradient-to-br from-[#FF2D2D]/20 to-[#FF2D2D]/10 border border-[#FF2D2D]/30 text-[#F8FAFC] font-bold">
+                    <td className="p-1 sm:p-2 text-xs text-center">
+                      <span className="inline-flex items-center justify-center w-5 h-5 sm:w-7 sm:h-7 rounded-[6px] bg-gradient-to-br from-[#FF2D2D]/20 to-[#FF2D2D]/10 border border-[#FF2D2D]/30 text-[#F8FAFC] font-bold text-[10px] sm:text-xs">
                         {exercise.sets}
                       </span>
                     </td>
-                    <td className="p-4 text-sm text-center">
-                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-[8px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#F8FAFC] font-medium">
+                    <td className="p-1 sm:p-2 text-xs text-center">
+                      <span className="inline-flex items-center justify-center px-1.5 sm:px-2 py-0.5 rounded-[6px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#F8FAFC] font-medium text-[10px] sm:text-xs">
                         {exercise.reps}
                       </span>
                     </td>
-                    <td className="p-4 text-sm text-center text-[#A7AFBE] font-medium">{exercise.tempo || '-'}</td>
-                    <td className="p-4 text-sm text-center">
-                      <span className="inline-flex items-center justify-center px-2 py-1 rounded-[6px] bg-[#1A1D24] text-[#A7AFBE] text-xs font-medium">
+                    <td className="p-1 sm:p-2 text-[10px] sm:text-xs text-center text-[#A7AFBE] font-medium">{exercise.tempo || '-'}</td>
+                    <td className="p-1 sm:p-2 text-center">
+                      <span className="inline-flex items-center justify-center px-1 sm:px-1.5 py-0.5 rounded-[6px] bg-[#1A1D24] text-[#A7AFBE] text-[9px] sm:text-xs font-medium">
                         {exercise.rest_seconds || '-'}s
                       </span>
                     </td>
-                    {/* Columns for each series */}
-                    {Array.from({ length: exercise.sets }).map((_, setIdx) => {
-                      const set = setIdx + 1
-                      const setData = log?.sets?.find(s => s.set_number === set)
-                      const isEditing = editingCell?.exercise === exercise.name && 
-                                      editingCell?.date === selectedDate && 
-                                      editingCell?.set === set
-                      const hasSetData = setData && (setData.reps || setData.weight_kg)
-                      const isBestRecord = bestRecord && 
-                                          bestRecord.date === selectedDate && 
-                                          bestRecord.set === set &&
-                                          setData?.weight_kg === bestRecord.weight &&
-                                          setData?.reps === bestRecord.reps
+                    {/* Columnas por sesión: Semana 1, 2, 3... Siempre editables, sin gaps */}
+                    {Array.from({ length: sessionCount }).map((_, sessionIdx) => {
+                      const sessions = getSessionsForExercise(exercise.name)
+                      const log = sessions[sessionIdx]
+                      const isNextColumn = sessionIdx === sessionCount - 1
+                      const sessionDate = log?.date ?? (isNextColumn ? todayStr : getDateForEmptySession(sessionIdx))
 
                       return (
-                        <td key={set} className="p-1 sm:p-1.5 border-l border-[rgba(255,255,255,0.03)]">
-                          <div className="flex gap-0.5 sm:gap-1 items-center justify-center">
-                            <div className="flex flex-col gap-0.5">
-                              {isEditing && editingCell?.field === 'reps' ? (
-                                <input
-                                  type="number"
-                                  value={cellValue}
-                                  onChange={(e) => setCellValue(e.target.value)}
-                                  onBlur={handleCellSave}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleCellSave()
-                                    if (e.key === 'Escape') handleCellCancel()
-                                  }}
-                                  autoFocus
-                                  className="w-11 sm:w-12 px-1 sm:px-1.5 py-0.5 sm:py-1 rounded-[4px] sm:rounded-[5px] bg-[#1A1D24] border-2 border-[#FF2D2D] text-[#F8FAFC] text-[11px] sm:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF2D2D]/50"
-                                  placeholder="R"
-                                />
-                              ) : (
-                                <div
-                                  onClick={() => handleCellClick(exercise.name, selectedDate, set, 'reps')}
-                                  className={`w-11 sm:w-12 px-1 sm:px-1.5 py-0.5 sm:py-1 rounded-[4px] sm:rounded-[5px] text-[#F8FAFC] cursor-pointer text-center border transition-colors text-[11px] sm:text-xs font-semibold ${
-                                    hasSetData 
-                                      ? 'bg-gradient-to-br from-[#FF2D2D]/20 to-[#FF2D2D]/10 border-[#FF2D2D]/40 hover:from-[#FF2D2D]/30 hover:to-[#FF2D2D]/20 hover:border-[#FF2D2D]/60' 
-                                      : 'bg-[#1A1D24] border-transparent hover:bg-[#24282F] hover:border-[#FF2D2D]/30'
-                                  }`}
-                                  title="Clic para editar reps"
+                        <td
+                          key={sessionIdx}
+                          className={`p-0.5 sm:p-1.5 border-l border-[rgba(255,255,255,0.03)] min-w-[72px] w-[72px] sm:min-w-[100px] sm:w-auto ${
+                            isNextColumn ? 'bg-[#FF2D2D]/5' : ''
+                          }`}
+                        >
+                          <div className="flex flex-col gap-0.5 sm:gap-1">
+                            {Array.from({ length: exercise.sets }).map((_, setIdx) => {
+                              const set = setIdx + 1
+                              const setData = log?.sets?.find(s => s.set_number === set)
+                              const isEditing = editingCell?.exercise === exercise.name && 
+                                              editingCell?.sessionDate === sessionDate && 
+                                              editingCell?.set === set
+                              const hasSetData = setData && (setData.reps || setData.weight_kg)
+                              const isBestRecord = bestRecord && 
+                                                  bestRecord.date === sessionDate && 
+                                                  bestRecord.set === set &&
+                                                  setData?.weight_kg === bestRecord.weight &&
+                                                  setData?.reps === bestRecord.reps
+
+                              return (
+                                <div 
+                                  key={set} 
+                                  className={`flex gap-0.5 sm:gap-1 items-center justify-center rounded py-0.5 ${isBestRecord ? 'bg-[#FF2D2D]/12' : ''}`}
+                                  title={isBestRecord ? 'PR' : undefined}
                                 >
-                                  {setData?.reps || '-'}
+                                  {isEditing && editingCell?.field === 'reps' ? (
+                                    <input
+                                      key={`reps-${exercise.name}-${sessionDate}-${set}`}
+                                      type="number"
+                                      inputMode="numeric"
+                                      value={cellValue}
+                                      onChange={(e) => setCellValue(e.target.value)}
+                                      onBlur={handleCellSave}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleCellSave()
+                                        if (e.key === 'Escape') handleCellCancel()
+                                      }}
+                                      autoFocus
+                                      className="min-w-[28px] w-7 sm:min-w-[36px] sm:w-10 px-0.5 sm:px-1 py-0.5 rounded bg-[#1A1D24] border-2 border-[#FF2D2D] text-[#F8FAFC] text-[11px] sm:text-xs font-semibold focus:outline-none touch-manipulation"
+                                      placeholder="R"
+                                    />
+                                  ) : (
+                                    <div
+                                      onClick={(e) => handleCellClick(e, exercise.name, sessionDate, set, 'reps')}
+                                      onPointerDown={(e) => e.stopPropagation()}
+                                      className={`min-w-[28px] w-7 sm:min-w-[36px] sm:w-10 flex items-center justify-center px-0.5 sm:px-1 py-0.5 rounded text-[#F8FAFC] cursor-pointer text-[11px] sm:text-xs font-semibold touch-manipulation active:scale-[0.98] min-h-[28px] sm:min-h-[32px] ${
+                                        hasSetData 
+                                          ? 'bg-[#FF2D2D]/20 border border-[#FF2D2D]/40 hover:bg-[#FF2D2D]/30' 
+                                          : 'bg-[#1A1D24] border border-transparent hover:bg-[#24282F] hover:border-[#FF2D2D]/30'
+                                      }`}
+                                    >
+                                      {setData?.reps ?? '-'}
+                                    </div>
+                                  )}
+                                  <span className="text-[#7B8291] font-bold text-[9px] sm:text-[10px] flex-shrink-0">×</span>
+                                  {isEditing && editingCell?.field === 'weight' ? (
+                                    <input
+                                      key={`weight-${exercise.name}-${sessionDate}-${set}`}
+                                      type="number"
+                                      inputMode="decimal"
+                                      step="0.5"
+                                      value={cellValue}
+                                      onChange={(e) => setCellValue(e.target.value)}
+                                      onBlur={handleCellSave}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleCellSave()
+                                        if (e.key === 'Escape') handleCellCancel()
+                                      }}
+                                      autoFocus
+                                      className="min-w-[28px] w-8 sm:min-w-[36px] sm:w-12 px-0.5 sm:px-1 py-0.5 rounded bg-[#1A1D24] border-2 border-[#FF2D2D] text-[#F8FAFC] text-[11px] sm:text-xs font-semibold focus:outline-none touch-manipulation"
+                                      placeholder="P"
+                                    />
+                                  ) : (
+                                    <div
+                                      onClick={(e) => handleCellClick(e, exercise.name, sessionDate, set, 'weight')}
+                                      onPointerDown={(e) => e.stopPropagation()}
+                                      className={`min-w-[28px] w-8 sm:min-w-[36px] sm:w-12 flex items-center justify-center px-0.5 sm:px-1 py-0.5 rounded text-[#F8FAFC] cursor-pointer text-[11px] sm:text-xs font-semibold touch-manipulation active:scale-[0.98] min-h-[28px] sm:min-h-[32px] ${
+                                        hasSetData 
+                                          ? 'bg-[#FF2D2D]/20 border border-[#FF2D2D]/40 hover:bg-[#FF2D2D]/30' 
+                                          : 'bg-[#1A1D24] border border-transparent hover:bg-[#24282F] hover:border-[#FF2D2D]/30'
+                                      }`}
+                                    >
+                                      {setData?.weight_kg != null ? `${setData.weight_kg}kg` : '-'}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                            <span className="text-[#7B8291] font-bold text-[10px] sm:text-xs">×</span>
-                            <div className="flex flex-col gap-0.5">
-                              {isEditing && editingCell?.field === 'weight' ? (
-                                <input
-                                  type="number"
-                                  step="0.5"
-                                  value={cellValue}
-                                  onChange={(e) => setCellValue(e.target.value)}
-                                  onBlur={handleCellSave}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleCellSave()
-                                    if (e.key === 'Escape') handleCellCancel()
-                                  }}
-                                  autoFocus
-                                  className="w-14 sm:w-16 px-1 sm:px-1.5 py-0.5 sm:py-1 rounded-[4px] sm:rounded-[5px] bg-[#1A1D24] border-2 border-[#FF2D2D] text-[#F8FAFC] text-[11px] sm:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF2D2D]/50"
-                                  placeholder="P"
-                                />
-                              ) : (
-                                <div
-                                  onClick={() => handleCellClick(exercise.name, selectedDate, set, 'weight')}
-                                  className={`w-14 sm:w-16 px-1 sm:px-1.5 py-0.5 sm:py-1 rounded-[4px] sm:rounded-[5px] text-[#F8FAFC] cursor-pointer text-center border transition-colors text-[11px] sm:text-xs font-semibold ${
-                                    hasSetData 
-                                      ? 'bg-gradient-to-br from-[#FF2D2D]/20 to-[#FF2D2D]/10 border-[#FF2D2D]/40 hover:from-[#FF2D2D]/30 hover:to-[#FF2D2D]/20 hover:border-[#FF2D2D]/60' 
-                                      : 'bg-[#1A1D24] border-transparent hover:bg-[#24282F] hover:border-[#FF2D2D]/30'
-                                  }`}
-                                  title="Clic para editar peso"
-                                >
-                                  {setData?.weight_kg ? `${setData.weight_kg}kg` : '-'}
-                                </div>
-                              )}
-                            </div>
-                            {isBestRecord && (
-                              <Trophy className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#FF2D2D] ml-0.5" />
-                            )}
+                              )
+                            })}
                           </div>
                         </td>
                       )
@@ -1077,24 +1143,32 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, weekNu
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-[#F8FAFC] mb-1">¡Registra tu progreso!</p>
-              <p className="text-xs text-[#A7AFBE]">Haz clic en las celdas para registrar tus reps y pesos. Los cambios se guardan automáticamente.</p>
+              <p className="text-xs text-[#A7AFBE]">
+                Haz clic en las celdas para registrar reps y pesos. Se guarda automáticamente.
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Botón para añadir nueva semana */}
-        <div className="flex flex-col items-center gap-3">
-          <button
-            onClick={handleNextWeek}
-            className="flex items-center gap-2 px-6 py-3 rounded-[12px] bg-gradient-to-r from-[#FF2D2D] to-[#FF4444] text-[#F8FAFC] hover:from-[#FF4444] hover:to-[#FF5555] transition-all text-sm font-semibold shadow-lg shadow-[#FF2D2D]/20 hover:shadow-[#FF2D2D]/30"
-          >
-            <Plus className="w-4 h-4" />
-            Completar Semana y Añadir Nueva
-          </button>
-          <p className="text-xs text-[#7B8291] text-center max-w-md">
-            Al completar esta semana, se guardará automáticamente en el historial y se creará una nueva semana con el mismo entrenamiento pero con reps y pesos vacíos para que puedas empezar de nuevo.
-          </p>
-        </div>
+        {/* Opción para crear nuevo historial (solo cuando el usuario lo decida) */}
+        <details className="group">
+          <summary className="flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-sm text-[#7B8291] hover:text-[#A7AFBE] cursor-pointer list-none">
+            <span className="group-open:rotate-90 transition-transform">▶</span>
+            Crear nuevo historial (empezar tabla desde cero)
+          </summary>
+          <div className="mt-3 p-4 rounded-[12px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)]">
+            <p className="text-xs text-[#A7AFBE] mb-3">
+              Esta tabla se extiende automáticamente. Solo usa esta opción si quieres archivar el progreso actual y empezar una nueva tabla limpia.
+            </p>
+            <button
+              onClick={handleNextWeek}
+              className="flex items-center justify-center gap-2 px-4 py-2 min-h-[40px] rounded-[10px] bg-[#24282F] border border-[rgba(255,255,255,0.08)] text-[#F8FAFC] hover:bg-[#2d3239] text-sm touch-manipulation"
+            >
+              <Plus className="w-4 h-4" />
+              Crear nueva tabla y archivar actual
+            </button>
+          </div>
+        </details>
       </div>
     </div>
   )
