@@ -1073,7 +1073,7 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
                                         if (e.key === 'Escape') handleCellCancel()
                                       }}
                                       autoFocus
-                                      className="min-w-[28px] w-7 sm:min-w-[36px] sm:w-10 px-0.5 sm:px-1 py-0.5 rounded bg-[#1A1D24] border-2 border-[#FF2D2D] text-[#F8FAFC] text-[11px] sm:text-xs font-semibold focus:outline-none touch-manipulation"
+                                      className="min-w-[28px] w-7 sm:min-w-[36px] sm:w-10 px-0.5 sm:px-1 py-0.5 rounded bg-[#1A1D24] border-2 border-[#FF2D2D] text-[#F8FAFC] text-base sm:text-xs font-semibold focus:outline-none touch-manipulation"
                                       placeholder="R"
                                     />
                                   ) : (
@@ -1104,7 +1104,7 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
                                         if (e.key === 'Escape') handleCellCancel()
                                       }}
                                       autoFocus
-                                      className="min-w-[28px] w-8 sm:min-w-[36px] sm:w-12 px-0.5 sm:px-1 py-0.5 rounded bg-[#1A1D24] border-2 border-[#FF2D2D] text-[#F8FAFC] text-[11px] sm:text-xs font-semibold focus:outline-none touch-manipulation"
+                                      className="min-w-[28px] w-8 sm:min-w-[36px] sm:w-12 px-0.5 sm:px-1 py-0.5 rounded bg-[#1A1D24] border-2 border-[#FF2D2D] text-[#F8FAFC] text-base sm:text-xs font-semibold focus:outline-none touch-manipulation"
                                       placeholder="P"
                                     />
                                   ) : (
