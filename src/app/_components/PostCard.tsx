@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Heart, MessageCircle, Share2, MoreVertical, Trash2, Eye, Reply } from 'lucide-react'
+import Link from 'next/link'
+import { Heart, MessageCircle, Share2, MoreVertical, Trash2, Eye, Reply, ExternalLink } from 'lucide-react'
 import SafeImage from './SafeImage'
 import { cn } from '@/lib/utils'
 import { useAuth } from './AuthProvider'
@@ -238,7 +239,7 @@ export default function PostCard({
       }
       
       // Copiar link al portapapeles (siempre, incluso si falla el registro)
-      const postUrl = `${window.location.origin}/explore?post=${post.id}`
+      const postUrl = `${window.location.origin}/p/${post.id}`
       copyToClipboard(postUrl)
       
       if (res.ok) {
@@ -251,7 +252,7 @@ export default function PostCard({
         setSharesCount(prev => prev - 1)
       }
       // Aún así, intentar copiar el link
-      const postUrl = `${window.location.origin}/explore?post=${post.id}`
+      const postUrl = `${window.location.origin}/p/${post.id}`
       copyToClipboard(postUrl)
     }
   }
@@ -684,9 +685,19 @@ export default function PostCard({
               <span className="text-xs font-semibold">{sharesCount}</span>
             </button>
           </div>
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#1A1D24] text-[#7B8291] text-xs">
-            <Eye className="w-3.5 h-3.5" />
-            <span className="font-medium text-xs">{post.stats.views}</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#1A1D24] text-[#7B8291] text-xs">
+              <Eye className="w-3.5 h-3.5" />
+              <span className="font-medium text-xs">{post.stats.views}</span>
+            </div>
+            <Link
+              href={`/p/${post.id}`}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[#A7AFBE] hover:text-[#FF2D2D] hover:bg-[#1A1D24] text-xs font-medium transition-colors"
+              title="Ver publicación en página pública"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Ver publicación
+            </Link>
           </div>
         </div>
       </div>
@@ -831,7 +842,7 @@ export default function PostCard({
                         onChange={(e) => setReplyText(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handlePostComment(comment.id)}
                         placeholder={`Responder a ${comment.author.name}...`}
-                        className="flex-1 px-2 py-1.5 bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-lg text-[#F8FAFC] text-xs placeholder-[#7B8291] focus:outline-none focus:border-[#FF2D2D] focus:ring-1 focus:ring-[#FF2D2D]/20 transition-all"
+                        className="flex-1 px-2 py-1.5 bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-lg text-[#F8FAFC] text-base placeholder-[#7B8291] focus:outline-none focus:border-[#FF2D2D] focus:ring-1 focus:ring-[#FF2D2D]/20 transition-all min-h-[2.5rem]"
                       />
                       <button
                         onClick={() => handlePostComment(comment.id)}
@@ -862,7 +873,7 @@ export default function PostCard({
               onChange={(e) => setNewComment(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handlePostComment()}
               placeholder="Escribe un comentario..."
-              className="flex-1 px-3 py-2 bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-lg text-[#F8FAFC] text-xs placeholder-[#7B8291] focus:outline-none focus:border-[#FF2D2D] focus:ring-1 focus:ring-[#FF2D2D]/20 transition-all"
+              className="flex-1 px-3 py-2 bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-lg text-[#F8FAFC] text-base placeholder-[#7B8291] focus:outline-none focus:border-[#FF2D2D] focus:ring-1 focus:ring-[#FF2D2D]/20 transition-all min-h-[2.5rem]"
             />
             <button
               onClick={() => handlePostComment()}

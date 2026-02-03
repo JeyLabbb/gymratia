@@ -12,8 +12,20 @@ export async function GET(req: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     )
-    
-    const { data: { session } } = await supabase.auth.getSession()
+
+    // Sesión: en el servidor getSession() está vacío; usar token del header si el cliente lo envía
+    let session: { user: { id: string } } | null = null
+    const authHeader = req.headers.get('authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice(7)
+      const supabaseAuth = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { global: { headers: { Authorization: `Bearer ${token}` } } }
+      )
+      const { data: { user } } = await supabaseAuth.auth.getUser(token)
+      if (user) session = { user }
+    }
     const searchParams = req.nextUrl.searchParams
     const feedType = searchParams.get('feed') || 'explore'
     const userId = searchParams.get('userId')
@@ -68,25 +80,32 @@ export async function GET(req: NextRequest) {
 
     const postIds = posts.map(p => p.id)
 
-    // Obtener estadísticas de likes, comentarios, shares y views
+    // Usar service role para estadísticas (post_views solo permite SELECT al autor con anon; así devolvemos conteos correctos)
+    const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createSupabaseClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        )
+      : supabase
+
     const [likesData, commentsData, sharesData, viewsData] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from('post_likes')
         .select('post_id')
         .in('post_id', postIds)
         .then(r => ({ data: r.data || [], error: r.error })),
-      supabase
+      supabaseAdmin
         .from('post_comments')
         .select('post_id')
         .in('post_id', postIds)
         .is('deleted_at', null)
         .then(r => ({ data: r.data || [], error: r.error })),
-      supabase
+      supabaseAdmin
         .from('post_shares')
         .select('post_id')
         .in('post_id', postIds)
         .then(r => ({ data: r.data || [], error: r.error })),
-      supabase
+      supabaseAdmin
         .from('post_views')
         .select('post_id')
         .in('post_id', postIds)
