@@ -13,9 +13,9 @@ export default async function PortalDashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[#050509] flex">
+    <div className="min-h-screen bg-[#050509] flex flex-col md:flex-row">
       <PortalNav />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pt-[calc(3rem+env(safe-area-inset-top))] md:pt-0 min-h-screen">
         {children}
       </main>
     </div>

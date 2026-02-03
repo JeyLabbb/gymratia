@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Users, Dumbbell, MessageSquare, FileText, Activity } from 'lucide-react'
+import { UsersPerDayChart } from '@/app/portal/_components/UsersPerDayChart'
 
 type OverviewData = {
   totalUsers: number
@@ -13,6 +14,7 @@ type OverviewData = {
   activeWorkouts: number
   activeDiets: number
   pendingRequests: number
+  usersByDay?: { date: string; count: number }[]
 }
 
 export default function PortalOverviewPage() {
@@ -30,14 +32,15 @@ export default function PortalOverviewPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-6 md:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 w-48 bg-[#1A1D24] rounded" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
               <div key={i} className="h-24 bg-[#1A1D24] rounded-xl" />
             ))}
           </div>
+          <div className="h-64 bg-[#1A1D24] rounded-xl mt-6" />
         </div>
       </div>
     )
@@ -55,10 +58,12 @@ export default function PortalOverviewPage() {
     { label: 'Solicitudes pendientes', value: data?.pendingRequests ?? 0, icon: FileText },
   ]
 
+  const usersByDay = data?.usersByDay ?? []
+
   return (
     <div className="p-6 md:p-8">
       <h1 className="font-heading text-2xl font-bold text-[#F8FAFC] mb-6">Overview</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {cards.map((c, i) => {
           const Icon = c.icon
           return (
@@ -78,6 +83,15 @@ export default function PortalOverviewPage() {
           )
         })}
       </div>
+
+      {usersByDay.length > 0 && (
+        <div className="mt-8">
+          <UsersPerDayChart
+            data={usersByDay}
+            title="Usuarios con cuenta GymRatIA (acumulado, últimos 30 días)"
+          />
+        </div>
+      )}
     </div>
   )
 }

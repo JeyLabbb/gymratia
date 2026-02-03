@@ -152,7 +152,8 @@ export default function HeroBackgroundVideo({ src, mobileSrc, className }: HeroB
     return (
       <img
         src={lastFrameSrc}
-        alt="Background"
+        alt=""
+        role="presentation"
         className={
           "absolute inset-0 h-full w-full object-cover pointer-events-none select-none " +
           (className ?? "")

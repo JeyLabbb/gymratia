@@ -97,18 +97,24 @@ export function MealPlanCalendar({ mealPlan, onDayClick, onEdit, editable = fals
     return Array.isArray(meal.foods) ? (meal.foods as Array<{ name?: string; quantity?: number; unit?: string; calories?: number; protein?: number; carbs?: number; fats?: number }>) : []
   }
 
+  // Parse time to minutes (HH:MM or HH:MM:SS). Missing/invalid => 0
+  const timeToMinutes = (time: string | undefined | null): number => {
+    if (time == null || typeof time !== 'string') return 0
+    const parts = time.trim().split(':').map(Number)
+    if (parts.length < 2 || parts.some(isNaN)) return 0
+    return (parts[0] ?? 0) * 60 + (parts[1] ?? 0)
+  }
+
   // Get sorted meals for selected day (sorted by time)
   const sortedMealsForSelectedDay = useMemo(() => {
     if (!selectedDay) return []
     const dayPlan = getMealPlanForDate(new Date(selectedDay))
     if (!dayPlan || !dayPlan.meals) return []
     
-    // Sort meals by time (HH:MM format)
+    // Sort meals by time (HH:MM format); meals without time go first (0)
     return [...dayPlan.meals].sort((a, b) => {
-      const timeA = a.time.split(':').map(Number)
-      const timeB = b.time.split(':').map(Number)
-      const minutesA = timeA[0] * 60 + timeA[1]
-      const minutesB = timeB[0] * 60 + timeB[1]
+      const minutesA = timeToMinutes(a.time)
+      const minutesB = timeToMinutes(b.time)
       return minutesA - minutesB
     })
   }, [selectedDay, localMealPlan])
@@ -293,7 +299,7 @@ export function MealPlanCalendar({ mealPlan, onDayClick, onEdit, editable = fals
                         <div key={mealIdx} className="bg-[rgba(255,255,255,0.03)] rounded-lg p-2">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-xs font-semibold text-[#F8FAFC]">{meal.name}</p>
-                            <p className="text-xs text-[#A7AFBE]">{meal.time}</p>
+                            <p className="text-xs text-[#A7AFBE]">{meal.time ?? '—'}</p>
                           </div>
                           <div className="space-y-1">
                             {foods.slice(0, 2).map((food, foodIdx) => (
@@ -367,14 +373,14 @@ export function MealPlanCalendar({ mealPlan, onDayClick, onEdit, editable = fals
               <div className="space-y-2">
                 {sortedMealsForSelectedDay.map((meal, mealIdx) => (
                   <div 
-                    key={`${meal.name}-${meal.time}-${mealIdx}`} 
+                    key={`${meal.name}-${meal.time ?? ''}-${mealIdx}`} 
                     className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] rounded-lg p-3 hover:bg-[rgba(255,255,255,0.08)] transition-colors"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-medium text-[#FF2D2D] bg-[#FF2D2D]/10 px-2 py-0.5 rounded">
-                            {meal.time}
+                            {meal.time ?? '—'}
                           </span>
                           <h6 className="font-heading font-semibold text-[#F8FAFC]">{meal.name}</h6>
                         </div>

@@ -90,7 +90,7 @@ export function PersonalizedHero() {
       <p className="text-lg text-[#A7AFBE] max-w-[520px]">
         {user
           ? 'Sigue tu progreso, chatea con tu entrenador y alcanza tus objetivos.'
-          : 'Entrena con un coach con personalidad propia. 9 semanas de progresión real adaptadas a tu objetivo, tu tiempo y tus limitaciones.'}
+          : 'Entrena con un coach con personalidad propia. Planes por bloques adaptados a tu objetivo, tu tiempo y tus limitaciones.'}
       </p>
       <div className="flex flex-col sm:flex-row gap-4 pt-4">
         <button

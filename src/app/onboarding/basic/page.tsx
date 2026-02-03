@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { LoadingScreen } from '@/app/_components/LoadingScreen'
+import Link from 'next/link'
 import { useAuth } from '@/app/_components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 
@@ -232,9 +232,9 @@ export default function OnboardingBasic() {
 
         <div className="mt-6 text-center text-sm text-[#A7AFBE]">
           ¿Experto?{' '}
-          <a className="text-[#FF2D2D] hover:underline" href="/onboarding/expert">
+          <Link href="/onboarding/expert" className="text-[#FF2D2D] hover:underline">
             Ir al modo experto
-          </a>
+          </Link>
         </div>
       </div>
     </div>

@@ -315,7 +315,7 @@ function FinalCTA() {
             EMPIEZA HOY TU TRANSFORMACIÓN
           </h2>
           <p className="text-[#A7AFBE] text-lg mb-8">
-            En menos de 5 minutos tienes tu plan de 9 semanas.
+            En menos de 5 minutos tienes tu plan personalizado.
           </p>
           <div className="flex justify-center">
             <StartButton text="Comenzar ahora" size="xl" />

@@ -232,9 +232,9 @@ function LoginContent() {
         </div>
 
         <div className="bg-[#14161B] border border-[rgba(255,255,255,0.08)] rounded-[22px] p-8">
-          <h2 className="font-heading text-2xl font-bold mb-6 text-center">
-            {isSignUp ? 'Crear cuenta' : 'Iniciar sesión'}
-          </h2>
+          <h1 className="font-heading text-2xl font-bold mb-6 text-center">
+            {isSignUp ? 'Crear cuenta en GymRatIA' : 'Iniciar sesión en GymRatIA'}
+          </h1>
 
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
