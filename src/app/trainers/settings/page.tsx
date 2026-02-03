@@ -409,7 +409,7 @@ export default function TrainerSettingsPage() {
 
   return (
     <>
-    <div className="min-h-screen bg-gradient-to-b from-[#050509] via-[#050509] to-[#0A0A0B]">
+    <div className="flex-1 overflow-y-auto min-h-0 bg-gradient-to-b from-[#050509] via-[#050509] to-[#0A0A0B]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
         <div className="mb-6">
           <h1 className="font-heading text-3xl md:text-4xl font-bold text-[#F8FAFC] mb-2">

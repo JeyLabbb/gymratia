@@ -17,6 +17,7 @@
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
+    "iron-session": "^8.0.4",
     "jspdf": "^3.0.4",
     "lucide-react": "^0.553.0",
     "next": "16.1.4",

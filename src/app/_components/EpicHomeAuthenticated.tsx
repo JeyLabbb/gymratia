@@ -23,6 +23,7 @@ import { personas } from '@/lib/personas'
 import HeroBackgroundVideo from './HeroBackgroundVideo'
 import { TrainerChatLink } from './TrainerChatLink'
 import { ProfileGuard } from './ProfileGuard'
+import { AppFooter } from './AppFooter'
 
 type UserProfile = {
   full_name?: string
@@ -135,27 +136,19 @@ export function EpicHomeAuthenticated() {
         if (currentMode === 'trainer') {
           setIsTrainer(true)
           try {
-            const [studentsRes, workoutsRes, dietsRes] = await Promise.all([
-              supabase
-                .from('trainer_student_relationships')
-                .select('id, status')
-                .eq('trainer_id', trainer.id),
-              supabase
-                .from('trainer_workouts')
-                .select('id')
-                .eq('trainer_id', trainer.id),
-              supabase
-                .from('trainer_diets')
-                .select('id')
-                .eq('trainer_id', trainer.id)
-            ])
-
-            setTrainerStats({
-              totalStudents: studentsRes.data?.length || 0,
-              activeStudents: studentsRes.data?.filter((s: any) => s.status === 'active').length || 0,
-              totalWorkouts: workoutsRes.data?.length || 0,
-              totalDiets: dietsRes.data?.length || 0
+            const statsRes = await fetch('/api/trainer/stats', {
+              headers: { Authorization: `Bearer ${session.access_token}` }
             })
+            if (statsRes.ok) {
+              const statsData = await statsRes.json()
+              const n = statsData.activeStudents ?? 0
+              setTrainerStats({
+                totalStudents: n,
+                activeStudents: n,
+                totalWorkouts: statsData.totalWorkouts ?? 0,
+                totalDiets: statsData.totalDiets ?? 0
+              })
+            }
           } catch (err) {
             console.error('Error cargando estadísticas:', err)
           }
@@ -437,6 +430,8 @@ export function EpicHomeAuthenticated() {
               </div>
             </div>
           </section>
+
+          <AppFooter />
         </div>
       )
   }
@@ -653,6 +648,8 @@ export function EpicHomeAuthenticated() {
           </div>
         </div>
       </section>
+
+      <AppFooter />
     </div>
   )
 }

@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { TrainerLayout } from '@/app/_components/TrainerLayout'
 
-const ROUTES_WITH_NAV = ['/trainers/dashboard', '/trainers/content/workouts', '/trainers/content/diets', '/trainers/settings']
+const ROUTES_WITH_NAV = ['/trainers/dashboard', '/trainers/students', '/trainers/content/workouts', '/trainers/content/diets', '/trainers/settings']
 
 export default function TrainersLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -11,6 +11,7 @@ export default function TrainersLayout({ children }: { children: React.ReactNode
   const activeSection = pathname?.includes('/content/workouts') ? 'workouts' 
     : pathname?.includes('/content/diets') ? 'diets' 
     : pathname?.includes('/settings') ? 'profile' 
+    : pathname?.startsWith('/trainers/students') ? 'students'
     : 'dashboard'
 
   if (!useNav) {

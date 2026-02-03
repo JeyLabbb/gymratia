@@ -99,32 +99,25 @@ export default function TrainerDashboardPage() {
       // Cargar posts
       loadPosts(trainerData.user_id)
 
-      // Cargar estadísticas
-      // Contar alumnos activos desde trainer_chats (usuarios únicos con chat abierto)
-      const { data: chatsData } = await supabase
-        .from('trainer_chats')
-        .select('user_id')
-        .eq('trainer_slug', trainerData.slug)
-      
-      const uniqueActiveStudents = new Set(chatsData?.map(c => c.user_id) || []).size
-
-      const [workoutsRes, dietsRes] = await Promise.all([
-        supabase
-          .from('trainer_workouts')
-          .select('id')
-          .eq('trainer_id', trainerData.id),
-        supabase
-          .from('trainer_diets')
-          .select('id')
-          .eq('trainer_id', trainerData.id)
-      ])
-
-      setStats({
-        totalStudents: uniqueActiveStudents,
-        activeStudents: uniqueActiveStudents,
-        totalWorkouts: workoutsRes.data?.length || 0,
-        totalDiets: dietsRes.data?.length || 0
-      })
+      // Estadísticas desde API (datos reales de la BD, sin depender de RLS)
+      try {
+        const statsRes = await fetch('/api/trainer/stats', {
+          headers: { Authorization: `Bearer ${session.access_token}` }
+        })
+        if (statsRes.ok) {
+          const statsData = await statsRes.json()
+          setStats({
+            totalStudents: statsData.activeStudents ?? 0,
+            activeStudents: statsData.activeStudents ?? 0,
+            totalWorkouts: statsData.totalWorkouts ?? 0,
+            totalDiets: statsData.totalDiets ?? 0
+          })
+        } else {
+          throw new Error('Stats API failed')
+        }
+      } catch {
+        setStats({ totalStudents: 0, activeStudents: 0, totalWorkouts: 0, totalDiets: 0 })
+      }
     } catch (err) {
       console.error('Error cargando datos:', err)
     } finally {

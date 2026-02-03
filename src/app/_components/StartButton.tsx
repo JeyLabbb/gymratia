@@ -24,7 +24,10 @@ export function StartButton({
   const handleClick = () => {
     if (loading) return
 
-    // Always go to login first
+    // Marcar modo alumno antes de ir a login (para redirección correcta tras aceptar términos)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('user_mode', 'student')
+    }
     router.push('/auth/login')
   }
 

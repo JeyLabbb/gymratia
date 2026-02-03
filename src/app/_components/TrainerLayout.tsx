@@ -27,7 +27,7 @@ type TrainerLayoutProps = {
 
 const navItems = [
   { id: 'dashboard', label: 'Resumen', icon: LayoutDashboard, href: '/trainers/dashboard' },
-  { id: 'students', label: 'Alumnos', icon: Users, href: '#', disabled: true },
+  { id: 'students', label: 'Alumnos', icon: Users, href: '/trainers/students', disabled: false },
   { id: 'workouts', label: 'Entrenamientos', icon: Dumbbell, href: '/trainers/content/workouts' },
   { id: 'diets', label: 'Dietas', icon: UtensilsCrossed, href: '/trainers/content/diets' },
   { id: 'profile', label: 'Tu perfil', icon: User, href: '/trainers/settings' },

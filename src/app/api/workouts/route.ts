@@ -6,11 +6,21 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+async function trainerHasAccessToStudent(supabase: any, trainerSlug: string, trainerId: string, studentId: string): Promise<boolean> {
+  const [chatRes, relRes, reqRes] = await Promise.all([
+    supabase.from('trainer_chats').select('id').eq('user_id', studentId).eq('trainer_slug', trainerSlug).maybeSingle(),
+    supabase.from('trainer_student_relationships').select('id').eq('trainer_id', trainerId).eq('student_id', studentId).eq('status', 'active').maybeSingle(),
+    supabase.from('trainer_access_requests').select('id').eq('user_id', studentId).eq('trainer_id', trainerId).eq('status', 'approved').maybeSingle(),
+  ])
+  return !!(chatRes.data || relRes.data || reqRes.data)
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const trainerSlug = searchParams.get('trainerSlug')
     const isActive = searchParams.get('isActive')
+    const studentId = searchParams.get('studentId') // Coach mode: fetch workouts for student
 
     const authHeader = req.headers.get('authorization')
     if (!authHeader) {
@@ -24,10 +34,19 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    let targetUserId = user.id
+    if (studentId) {
+      const { data: trainer } = await supabaseAdmin.from('trainers').select('id, slug').eq('user_id', user.id).maybeSingle()
+      if (!trainer || !(await trainerHasAccessToStudent(supabaseAdmin, trainer.slug, trainer.id, studentId))) {
+        return NextResponse.json({ error: 'No tienes permiso para ver los entrenamientos de este alumno' }, { status: 403 })
+      }
+      targetUserId = studentId
+    }
+
     let query = supabaseAdmin
       .from('user_workouts')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', targetUserId)
 
     if (trainerSlug) {
       query = query.eq('trainer_slug', trainerSlug)
@@ -118,7 +137,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const body = await req.json()
-    const { id, ...updates } = body
+    const { id, studentId: bodyStudentId, ...updates } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Workout ID is required' }, { status: 400 })
@@ -136,20 +155,29 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    let targetUserId = user.id
+    if (bodyStudentId) {
+      const { data: trainer } = await supabaseAdmin.from('trainers').select('id, slug').eq('user_id', user.id).maybeSingle()
+      if (!trainer || !(await trainerHasAccessToStudent(supabaseAdmin, trainer.slug, trainer.id, bodyStudentId))) {
+        return NextResponse.json({ error: 'No tienes permiso para editar este entrenamiento' }, { status: 403 })
+      }
+      targetUserId = bodyStudentId
+    }
+
     // If setting as active, deactivate others
     if (updates.is_active) {
       const { data: currentWorkout } = await supabaseAdmin
         .from('user_workouts')
         .select('trainer_slug')
         .eq('id', id)
-        .eq('user_id', user.id)
+        .eq('user_id', targetUserId)
         .single()
 
       if (currentWorkout) {
         await supabaseAdmin
           .from('user_workouts')
           .update({ is_active: false })
-          .eq('user_id', user.id)
+          .eq('user_id', targetUserId)
           .eq('trainer_slug', currentWorkout.trainer_slug)
           .neq('id', id)
       }
@@ -159,7 +187,7 @@ export async function PUT(req: Request) {
       .from('user_workouts')
       .update(updates)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', targetUserId)
       .select()
       .single()
 

@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { height_cm, weight_kg, target_weight_kg, goal, sex, full_name, preferred_name, avatar_url, preferred_meal_times, training_schedule } = body
+    const { height_cm, weight_kg, target_weight_kg, goal, sex, full_name, preferred_name, avatar_url, preferred_meal_times, training_schedule, terms_accepted_at, terms_version } = body
 
     const authHeader = req.headers.get('authorization')
     if (!authHeader) {
@@ -72,6 +72,8 @@ export async function POST(req: Request) {
     if (avatar_url) profileData.avatar_url = avatar_url
     if (preferred_meal_times) profileData.preferred_meal_times = preferred_meal_times
     if (training_schedule) profileData.training_schedule = training_schedule
+    if (terms_accepted_at) profileData.terms_accepted_at = terms_accepted_at
+    if (terms_version) profileData.terms_version = terms_version
     if (user.email) profileData.email = user.email
 
     let updatedProfile

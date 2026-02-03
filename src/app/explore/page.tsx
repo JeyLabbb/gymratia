@@ -6,6 +6,7 @@ import { Compass, Users, TrendingUp, Plus, ArrowLeft } from 'lucide-react'
 import PostCard from '@/app/_components/PostCard'
 import { CreatePostModal } from '@/app/_components/CreatePostModal'
 import { useAuth } from '@/app/_components/AuthProvider'
+import { AppFooter } from '@/app/_components/AppFooter'
 
 type Post = {
   id: string
@@ -228,6 +229,8 @@ export default function ExplorePage() {
           onSuccess={handlePostSuccess}
         />
       )}
+
+      <AppFooter />
     </div>
   )
 }

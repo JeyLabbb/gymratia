@@ -2,12 +2,11 @@
 import type { Trainer } from '@/lib/personas'
 import { 
   searchTrainerLibrary, 
-  detectSafetyIssues, 
-  generateSafetyResponse,
   analyzeIntent,
   type TrainerContent,
   type ContentType
 } from './rag-system'
+import { shouldShowHealthWarning, renderShortHealthWarning, lastMessageHadHealthWarning } from './health-guardrail'
 import { verifyAndCompleteDietResponse } from './diet-verifier'
 import { createClient } from '@supabase/supabase-js'
 
@@ -101,7 +100,8 @@ export async function chatConversational(
     }>
     target_weight_kg?: number
     hasReachedWeightTarget?: boolean
-  }
+  },
+  imageUrls?: string[]
 ): Promise<string> {
   const systemMessages: ChatMessage[] = [
     {
@@ -521,21 +521,38 @@ Si el usuario pide algo que requiere material del entrenador, debes decir que no
     systemMessages[0].content += materialContext
   }
 
+  if (imageUrls && imageUrls.length > 0) {
+    systemMessages[0].content += `\n\n📷 VISIÓN: El usuario ha adjuntado ${imageUrls.length} imagen(es). Puedes comentar sobre ellas: comida/plato, técnica de ejercicio, progreso físico, o cualquier aspecto relevante para entrenamiento/nutrición. Responde de forma natural según tu personalidad.`
+  }
+
   const MAX_HISTORY = 14
   const trimmedMessages = messages.length > MAX_HISTORY ? messages.slice(-MAX_HISTORY) : messages
-  const conversationMessages: ChatMessage[] = trimmedMessages.map(msg => ({
+  let conversationMessages: Array<{ role: 'user' | 'assistant'; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }> = trimmedMessages.map(msg => ({
     role: msg.role === 'user' ? 'user' : 'assistant',
     content: msg.content
   }))
 
+  if (imageUrls && imageUrls.length > 0 && conversationMessages.length > 0) {
+    const last = conversationMessages[conversationMessages.length - 1]
+    if (last.role === 'user') {
+      const textPart = { type: 'text' as const, text: (typeof last.content === 'string' ? last.content : '') || '(imagen adjunta)' }
+      const imageParts = imageUrls.map(url => ({ type: 'image_url' as const, image_url: { url } }))
+      conversationMessages = [...conversationMessages.slice(0, -1), {
+        role: 'user' as const,
+        content: [textPart, ...imageParts]
+      }]
+    }
+  }
+
   const allMessages = [...systemMessages, ...conversationMessages]
 
-  // SEGURIDAD: Detectar situaciones sensibles ANTES de generar respuesta
+  // SEGURIDAD: Solo warning corto en triggers GRAVES (no mega disclaimer)
   const lastUserMessage = messages[messages.length - 1]?.content || ''
-  const safetyIssues = detectSafetyIssues(lastUserMessage)
+  const seriousTriggers = shouldShowHealthWarning(lastUserMessage)
+  const hadWarningRecently = lastMessageHadHealthWarning(messages)
   
-  if (safetyIssues.length > 0) {
-    return generateSafetyResponse(safetyIssues, lastUserMessage)
+  if (seriousTriggers.length > 0 && !hadWarningRecently) {
+    return renderShortHealthWarning(seriousTriggers)
   }
 
   // Clasificación rápida por heurística (sin API call extra - reduce latencia)
@@ -555,7 +572,8 @@ Si el usuario pide algo que requiere material del entrenador, debes decir que no
 
   // Usar modelo barato y rápido (gpt-5-mini) para conversaciones simples
   // Usar modelo potente (gpt-5.2) para tareas complejas que requieren crear/modificar contenido
-  const model = isComplexRequest ? 'gpt-5.2' : 'gpt-5-mini'
+  // Con imagen (visión) usar modelo que soporte vision
+  const model = (imageUrls && imageUrls.length > 0) ? 'gpt-4o' : (isComplexRequest ? 'gpt-5.2' : 'gpt-5-mini')
   
   const requestBody: any = {
     model: model,
@@ -829,10 +847,7 @@ Responde SOLO con el tag [ACTION:OPEN_WORKOUT:...] con el JSON completo.`
     }
   }
 
-  // Añadir disclaimer de seguridad al final
-  if (isDietRequest || isWorkoutRequest) {
-    content += `\n\n---\n⚠️ Recordatorio: Este plan está basado en la información que compartiste y el material de ${trainer.name}. No sustituye el asesoramiento profesional. Si tienes condiciones médicas, lesiones o dudas, consulta con un profesional de la salud.`
-  }
+  // No mega disclaimer automático; el aviso UI "puede cometer errores" es suficiente
 
   // If response is in JSON format (from json_schema or natural JSON), convert to [ACTION:...] format
   if (isDietRequest || isMealPlanRequest || isWorkoutRequest) {

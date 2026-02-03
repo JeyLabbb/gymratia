@@ -165,11 +165,15 @@ export async function POST(req: Request) {
   try {
     console.log('📨 POST /api/chat - Starting request')
     const body = await req.json()
-    const { chatId, message, trainerSlug, openDietPanel } = body
+    const { chatId, message, trainerSlug, openDietPanel, imageUrl, imageUrls } = body
     
-    if (!message || !trainerSlug) {
-      console.error('❌ Missing required fields:', { message: !!message, trainerSlug: !!trainerSlug })
-      return NextResponse.json({ error: 'Missing required fields: message and trainerSlug' }, { status: 400 })
+    const hasText = message && String(message).trim()
+    const urls = Array.isArray(imageUrls) && imageUrls.length > 0
+      ? imageUrls.filter((u: any) => u && String(u).trim())
+      : (imageUrl && String(imageUrl).trim()) ? [imageUrl] : []
+    const hasImages = urls.length > 0
+    if (!trainerSlug || (!hasText && !hasImages)) {
+      return NextResponse.json({ error: 'Indica mensaje o imagen' }, { status: 400 })
     }
 
     // Get auth token from header
@@ -292,13 +296,15 @@ export async function POST(req: Request) {
       ? allPrev.slice(-MAX_HISTORY_MESSAGES)
       : allPrev
 
-    messageHistory.push({ role: 'user', content: message })
+    const textContent = hasText ? String(message).trim() : '(imagen adjunta)'
+    messageHistory.push({ role: 'user', content: textContent })
 
-    // Save user message
+    // Save user message (con image_url: string o JSON array)
     await supabase.from('chat_messages').insert({
       chat_id: chat.id,
       role: 'user',
-      content: message,
+      content: textContent,
+      ...(hasImages && { image_url: urls.length === 1 ? urls[0] : JSON.stringify(urls) }),
     })
 
     // Extract training schedule and intensity from active plan
@@ -410,7 +416,8 @@ export async function POST(req: Request) {
       aiResponse = await chatConversational(
         trainer,
         messageHistory,
-        userContextWithId
+        userContextWithId,
+        hasImages ? urls : undefined
       )
       console.log('✅ Got AI response, length:', aiResponse?.length || 0)
     } catch (error: any) {

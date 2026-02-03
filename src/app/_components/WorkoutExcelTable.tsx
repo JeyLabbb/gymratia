@@ -49,6 +49,9 @@ type WorkoutExcelTableProps = {
   relatedWorkoutIds?: string[]
   weekNumber?: number
   onWeekChange?: (weekNumber: number) => void
+  /** Coach mode: trainer editing on behalf of student. Uses coach-write API. */
+  coachMode?: boolean
+  studentId?: string
 }
 
 type Warning = {
@@ -59,14 +62,109 @@ type Warning = {
 
 const MAX_SESSIONS = 20
 
-export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relatedWorkoutIds = [], weekNumber = 1, onWeekChange }: WorkoutExcelTableProps) {
+function EditExerciseForm({ exercise, onSave, onCancel }: { exercise: Exercise; onSave: (ex: Exercise) => void; onCancel: () => void }) {
+  const [name, setName] = useState(exercise.name)
+  const [sets, setSets] = useState(String(exercise.sets))
+  const [reps, setReps] = useState(exercise.reps)
+  const [tempo, setTempo] = useState(exercise.tempo || '')
+  const [restSeconds, setRestSeconds] = useState(String(exercise.rest_seconds ?? 90))
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const setsNum = parseInt(sets, 10)
+    const restNum = parseInt(restSeconds, 10)
+    onSave({
+      ...exercise,
+      name: name.trim() || exercise.name,
+      sets: isNaN(setsNum) || setsNum < 1 ? 3 : Math.min(setsNum, 10),
+      reps: reps.trim() || '8-12',
+      tempo: tempo.trim() || undefined,
+      rest_seconds: isNaN(restNum) || restNum < 0 ? 90 : Math.min(restNum, 300),
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-xs text-[#A7AFBE] mb-1">Nombre</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full rounded-[10px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] px-3 py-2 text-[#F8FAFC] text-sm focus:outline-none focus:ring-2 focus:ring-[#FF2D2D]"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs text-[#A7AFBE] mb-1">Series</label>
+          <input
+            type="number"
+            min={1}
+            max={10}
+            value={sets}
+            onChange={(e) => setSets(e.target.value)}
+            className="w-full rounded-[10px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] px-3 py-2 text-[#F8FAFC] text-sm focus:outline-none focus:ring-2 focus:ring-[#FF2D2D]"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-[#A7AFBE] mb-1">Reps objetivo</label>
+          <input
+            type="text"
+            value={reps}
+            onChange={(e) => setReps(e.target.value)}
+            placeholder="8-12"
+            className="w-full rounded-[10px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] px-3 py-2 text-[#F8FAFC] text-sm focus:outline-none focus:ring-2 focus:ring-[#FF2D2D]"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs text-[#A7AFBE] mb-1">Tempo</label>
+          <input
+            type="text"
+            value={tempo}
+            onChange={(e) => setTempo(e.target.value)}
+            placeholder="2-1-1-0"
+            className="w-full rounded-[10px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] px-3 py-2 text-[#F8FAFC] text-sm focus:outline-none focus:ring-2 focus:ring-[#FF2D2D]"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-[#A7AFBE] mb-1">Descanso (seg)</label>
+          <input
+            type="number"
+            min={0}
+            max={300}
+            value={restSeconds}
+            onChange={(e) => setRestSeconds(e.target.value)}
+            className="w-full rounded-[10px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] px-3 py-2 text-[#F8FAFC] text-sm focus:outline-none focus:ring-2 focus:ring-[#FF2D2D]"
+          />
+        </div>
+      </div>
+      <div className="flex gap-2 pt-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 px-4 py-2 rounded-[10px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] text-[#F8FAFC] hover:bg-[#24282F] text-sm"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          className="flex-1 px-4 py-2 rounded-[10px] bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] text-sm font-medium"
+        >
+          Guardar
+        </button>
+      </div>
+    </form>
+  )
+}
+
+export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relatedWorkoutIds = [], weekNumber = 1, onWeekChange, coachMode = false, studentId }: WorkoutExcelTableProps) {
   const toast = useToast()
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [logs, setLogs] = useState<ExerciseLog[]>([])
   const todayRowRef = useRef<HTMLTableRowElement>(null)
   const todayColRef = useRef<HTMLTableCellElement>(null)
-  const [editingCell, setEditingCell] = useState<{ exercise: string; sessionDate: string; set: number; field: string } | null>(null)
-  const [cellValue, setCellValue] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null)
   const [showAddExercise, setShowAddExercise] = useState(false)
@@ -133,9 +231,12 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
       if (!session) return
 
       const ids = [workout.id, ...relatedWorkoutIds].filter((id, i, arr) => arr.indexOf(id) === i)
-      const url = ids.length > 1
+      let url = ids.length > 1
         ? `/api/exercise-logs?workoutIds=${ids.join(',')}`
         : `/api/exercise-logs?workoutId=${workout.id}`
+      if (coachMode && studentId) {
+        url += (url.includes('?') ? '&' : '?') + `studentId=${studentId}`
+      }
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
@@ -156,28 +257,20 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
     return matches.find(m => m.workout_id === workout.id) || matches[0]
   }
 
-  const handleCellClick = (e: React.MouseEvent | React.PointerEvent, exercise: string, sessionDate: string, set: number, field: string) => {
-    e.preventDefault()
-    e.stopPropagation()
+  const handleCellBlur = async (
+    day: string,
+    exercise: string,
+    sessionDate: string,
+    set: number,
+    field: string,
+    value: string
+  ) => {
+    const v = value.trim()
     const log = getLogForExercise(exercise, sessionDate)
     const setData = log?.sets?.find(s => s.set_number === set)
-    let value = ''
-    if (field === 'reps') value = setData?.reps?.toString() || ''
-    if (field === 'weight') value = setData?.weight_kg?.toString() || ''
-    setEditingCell({ exercise, sessionDate, set, field })
-    setCellValue(value)
-  }
-
-  const handleCellSave = async () => {
-    if (!editingCell) return
-
-    const { exercise, sessionDate: date, set, field } = editingCell
-    const value = cellValue.trim()
-    
-    // Clear editing state immediately to prevent UI bugs
-    const currentEditingCell = editingCell
-    setEditingCell(null)
-    setCellValue('')
+    const curVal = field === 'reps' ? setData?.reps : setData?.weight_kg
+    const newVal = v ? (field === 'reps' ? Number(v) : parseFloat(v)) : null
+    if (newVal === curVal || (v === '' && (curVal == null || Number.isNaN(curVal)))) return
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -186,8 +279,39 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
       const exerciseData = exercises.find(e => e.name === exercise)
       if (!exerciseData) return
 
-      let updatedLog = getLogForExercise(exercise, date)
-      
+      const date = sessionDate
+      const setPayload = {
+        set_number: set,
+        [field === 'reps' ? 'reps' : 'weight_kg']: v ? Number(v) : null
+      } as { set_number: number; reps?: number | null; weight_kg?: number | null }
+
+      if (coachMode && studentId) {
+        const response = await fetch('/api/exercise-logs/coach-write', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            student_id: studentId,
+            workout_id: workout.id,
+            exercise_name: exercise,
+            date,
+            sets: [setPayload],
+          }),
+        })
+        if (response.ok) {
+          await loadLogs()
+          toast.success('Datos guardados')
+        } else {
+          const err = await response.json().catch(() => ({}))
+          toast.error(err.error || 'Error al guardar')
+        }
+        return
+      }
+
+      const updatedLog = getLogForExercise(exercise, date)
+
       if (!updatedLog) {
         const response = await fetch('/api/exercise-logs', {
           method: 'POST',
@@ -199,10 +323,7 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
             workout_id: workout.id,
             exercise_name: exercise,
             date,
-            sets: [{
-              set_number: set,
-              [field === 'reps' ? 'reps' : 'weight_kg']: value ? Number(value) : null
-            }],
+            sets: [setPayload],
             ...(relatedWorkoutIds.length > 0 && { related_workout_ids: relatedWorkoutIds })
           }),
         })
@@ -211,25 +332,16 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
           await loadLogs()
           toast.success('Datos guardados')
         } else {
-          // Restore editing state on error
-          setEditingCell(currentEditingCell)
-          setCellValue(value)
           toast.error('Error al guardar')
         }
       } else {
         const sets = [...(updatedLog.sets || [])]
         let setIndex = sets.findIndex(s => s.set_number === set)
-        
+
         if (setIndex === -1) {
-          sets.push({
-            set_number: set,
-            [field === 'reps' ? 'reps' : 'weight_kg']: value ? Number(value) : null
-          } as any)
+          sets.push({ ...setPayload } as any)
         } else {
-          sets[setIndex] = {
-            ...sets[setIndex],
-            [field === 'reps' ? 'reps' : 'weight_kg']: value ? Number(value) : null
-          }
+          sets[setIndex] = { ...sets[setIndex], ...setPayload } as any
         }
 
         const response = await fetch(`/api/exercise-logs?id=${updatedLog.id}`, {
@@ -245,24 +357,13 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
           await loadLogs()
           toast.success('Datos guardados')
         } else {
-          // Restore editing state on error
-          setEditingCell(currentEditingCell)
-          setCellValue(value)
           toast.error('Error al guardar')
         }
       }
     } catch (error) {
       console.error('Error saving log:', error)
-      // Restore editing state on error
-      setEditingCell(currentEditingCell)
-      setCellValue(value)
       toast.error('Error al guardar')
     }
-  }
-
-  const handleCellCancel = () => {
-    setEditingCell(null)
-    setCellValue('')
   }
 
   const handleDeleteExercise = async (exerciseName: string) => {
@@ -308,24 +409,87 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
         exercises: day.exercises?.filter((ex: any) => ex.name !== exerciseName) || []
       }))
 
-      const response = await fetch(`/api/workouts?id=${workout.id}`, {
+      const response = await fetch('/api/workouts', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          workout_data: { ...workoutData, days: updatedDays }
+          id: workout.id,
+          workout_data: { ...workoutData, days: updatedDays },
+          ...(coachMode && studentId && { studentId }),
         }),
       })
 
       if (response.ok) {
+        loadWorkoutData()
         onUpdate()
         toast.success('Ejercicio eliminado')
+      } else {
+        const err = await response.json().catch(() => ({}))
+        toast.error(err.error || 'Error al eliminar')
       }
     } catch (error) {
       console.error('Error deleting exercise:', error)
       toast.error('Error al eliminar ejercicio')
+    }
+  }
+
+  const handleSaveExercise = async (updated: Exercise) => {
+    if (!editingExercise) return
+    const oldName = editingExercise.name
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const workoutData = workout.workout_data || { days: [] }
+      const updatedDays = workoutData.days.map((day: any) => ({
+        ...day,
+        exercises: (day.exercises || []).map((ex: any) => {
+          const name = ex.name || ex.exercise_name || ''
+          if (name !== oldName) return ex
+          return {
+            ...ex,
+            name: updated.name,
+            exercise_name: updated.name,
+            sets: updated.sets,
+            target_sets: updated.sets,
+            reps: updated.reps,
+            target_reps: updated.reps,
+            tempo: updated.tempo || ex.tempo,
+            rest_seconds: updated.rest_seconds ?? ex.rest_seconds ?? ex.rest ?? 90,
+            rest: updated.rest_seconds ?? ex.rest_seconds ?? ex.rest ?? 90,
+          }
+        }),
+      }))
+
+      const response = await fetch('/api/workouts', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          id: workout.id,
+          workout_data: { ...workoutData, days: updatedDays },
+          ...(coachMode && studentId && { studentId }),
+        }),
+      })
+
+      if (response.ok) {
+        setEditingExercise(null)
+        loadWorkoutData()
+        onUpdate()
+        toast.success('Ejercicio actualizado')
+      } else {
+        const err = await response.json().catch(() => ({}))
+        toast.error(err.error || 'Error al guardar')
+      }
+    } catch (error) {
+      console.error('Error saving exercise:', error)
+      toast.error('Error al guardar ejercicio')
     }
   }
 
@@ -754,6 +918,29 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
         </>
       )}
 
+      {/* Edit Exercise Modal */}
+      {editingExercise && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 z-50"
+            onClick={() => setEditingExercise(null)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div
+              className="bg-[#14161B] border-2 border-[#FF2D2D]/40 rounded-[16px] p-6 w-full max-w-md shadow-2xl pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-heading text-lg font-bold text-[#F8FAFC] mb-4">Editar ejercicio</h3>
+              <EditExerciseForm
+                exercise={editingExercise}
+                onSave={(ex) => handleSaveExercise(ex)}
+                onCancel={() => setEditingExercise(null)}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Rest Day Message - compact on mobile (1 line + expand), full on desktop */}
       {isTodayRestDay && (
         <>
@@ -992,7 +1179,7 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
                           <div className="w-0.5 sm:w-1 h-3 sm:h-5 rounded-full bg-gradient-to-b from-[#FF2D2D] to-[#FF2D2D]/50 flex-shrink-0"></div>
                           <span className="font-medium text-[11px] sm:text-sm break-words line-clamp-2 sm:line-clamp-1">{exercise.name}</span>
                         </div>
-                        <div className="flex items-center gap-0.5 sm:gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 hidden sm:flex">
+                        <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
                           <button
                             onClick={() => setEditingExercise(exercise)}
                             className="p-1 sm:p-1.5 rounded-[6px] hover:bg-[#24282F] hover:border border-[#FF2D2D]/30 transition-all touch-manipulation"
@@ -1036,7 +1223,7 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
                       return (
                         <td
                           key={sessionIdx}
-                          className={`p-0.5 sm:p-1.5 border-l border-[rgba(255,255,255,0.03)] min-w-[72px] w-[72px] sm:min-w-[100px] sm:w-auto ${
+                          className={`relative z-10 p-0.5 sm:p-1.5 border-l border-[rgba(255,255,255,0.03)] min-w-[72px] w-[72px] sm:min-w-[100px] sm:w-auto ${
                             isNextColumn ? 'bg-[#FF2D2D]/5' : ''
                           }`}
                         >
@@ -1044,9 +1231,6 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
                             {Array.from({ length: exercise.sets }).map((_, setIdx) => {
                               const set = setIdx + 1
                               const setData = log?.sets?.find(s => s.set_number === set)
-                              const isEditing = editingCell?.exercise === exercise.name && 
-                                              editingCell?.sessionDate === sessionDate && 
-                                              editingCell?.set === set
                               const hasSetData = setData && (setData.reps || setData.weight_kg)
                               const isBestRecord = bestRecord && 
                                                   bestRecord.date === sessionDate && 
@@ -1060,66 +1244,29 @@ export function WorkoutExcelTable({ workout, onUpdate, activeTrainerSlug, relate
                                   className={`flex gap-0.5 sm:gap-1 items-center justify-center rounded py-0.5 ${isBestRecord ? 'bg-[#FF2D2D]/12' : ''}`}
                                   title={isBestRecord ? 'PR' : undefined}
                                 >
-                                  {isEditing && editingCell?.field === 'reps' ? (
-                                    <input
-                                      key={`reps-${exercise.name}-${sessionDate}-${set}`}
-                                      type="number"
-                                      inputMode="numeric"
-                                      value={cellValue}
-                                      onChange={(e) => setCellValue(e.target.value)}
-                                      onBlur={handleCellSave}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleCellSave()
-                                        if (e.key === 'Escape') handleCellCancel()
-                                      }}
-                                      autoFocus
-                                      className="min-w-[28px] w-7 sm:min-w-[36px] sm:w-10 px-0.5 sm:px-1 py-0.5 rounded bg-[#1A1D24] border-2 border-[#FF2D2D] text-[#F8FAFC] text-base sm:text-xs font-semibold focus:outline-none touch-manipulation"
-                                      placeholder="R"
-                                    />
-                                  ) : (
-                                    <div
-                                      onClick={(e) => handleCellClick(e, exercise.name, sessionDate, set, 'reps')}
-                                      onPointerDown={(e) => e.stopPropagation()}
-                                      className={`min-w-[28px] w-7 sm:min-w-[36px] sm:w-10 flex items-center justify-center px-0.5 sm:px-1 py-0.5 rounded text-[#F8FAFC] cursor-pointer text-[11px] sm:text-xs font-semibold touch-manipulation active:scale-[0.98] min-h-[28px] sm:min-h-[32px] ${
-                                        hasSetData 
-                                          ? 'bg-[#FF2D2D]/20 border border-[#FF2D2D]/40 hover:bg-[#FF2D2D]/30' 
-                                          : 'bg-[#1A1D24] border border-transparent hover:bg-[#24282F] hover:border-[#FF2D2D]/30'
-                                      }`}
-                                    >
-                                      {setData?.reps ?? '-'}
-                                    </div>
-                                  )}
+                                  <input
+                                    key={`reps-${day}-${exercise.name}-${sessionDate}-${set}-${setData?.reps ?? 'e'}`}
+                                    type="text"
+                                    inputMode="numeric"
+                                    defaultValue={setData?.reps != null ? String(setData.reps) : ''}
+                                    onBlur={(e) => handleCellBlur(day, exercise.name, sessionDate, set, 'reps', e.target.value)}
+                                    placeholder="R"
+                                    className={`min-w-[28px] w-7 sm:min-w-[36px] sm:w-10 px-0.5 sm:px-1 py-0.5 rounded text-center text-[#F8FAFC] text-base sm:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF2D2D] focus:border-transparent touch-manipulation border ${
+                                      hasSetData ? 'bg-[#FF2D2D]/20 border-[#FF2D2D]/40' : 'bg-[#1A1D24] border-[rgba(255,255,255,0.08)] hover:border-[#FF2D2D]/30'
+                                    }`}
+                                  />
                                   <span className="text-[#7B8291] font-bold text-[9px] sm:text-[10px] flex-shrink-0">×</span>
-                                  {isEditing && editingCell?.field === 'weight' ? (
-                                    <input
-                                      key={`weight-${exercise.name}-${sessionDate}-${set}`}
-                                      type="number"
-                                      inputMode="decimal"
-                                      step="0.5"
-                                      value={cellValue}
-                                      onChange={(e) => setCellValue(e.target.value)}
-                                      onBlur={handleCellSave}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleCellSave()
-                                        if (e.key === 'Escape') handleCellCancel()
-                                      }}
-                                      autoFocus
-                                      className="min-w-[28px] w-8 sm:min-w-[36px] sm:w-12 px-0.5 sm:px-1 py-0.5 rounded bg-[#1A1D24] border-2 border-[#FF2D2D] text-[#F8FAFC] text-base sm:text-xs font-semibold focus:outline-none touch-manipulation"
-                                      placeholder="P"
-                                    />
-                                  ) : (
-                                    <div
-                                      onClick={(e) => handleCellClick(e, exercise.name, sessionDate, set, 'weight')}
-                                      onPointerDown={(e) => e.stopPropagation()}
-                                      className={`min-w-[28px] w-8 sm:min-w-[36px] sm:w-12 flex items-center justify-center px-0.5 sm:px-1 py-0.5 rounded text-[#F8FAFC] cursor-pointer text-[11px] sm:text-xs font-semibold touch-manipulation active:scale-[0.98] min-h-[28px] sm:min-h-[32px] ${
-                                        hasSetData 
-                                          ? 'bg-[#FF2D2D]/20 border border-[#FF2D2D]/40 hover:bg-[#FF2D2D]/30' 
-                                          : 'bg-[#1A1D24] border border-transparent hover:bg-[#24282F] hover:border-[#FF2D2D]/30'
-                                      }`}
-                                    >
-                                      {setData?.weight_kg != null ? `${setData.weight_kg}kg` : '-'}
-                                    </div>
-                                  )}
+                                  <input
+                                    key={`weight-${day}-${exercise.name}-${sessionDate}-${set}-${setData?.weight_kg ?? 'e'}`}
+                                    type="text"
+                                    inputMode="decimal"
+                                    defaultValue={setData?.weight_kg != null ? String(setData.weight_kg) : ''}
+                                    onBlur={(e) => handleCellBlur(day, exercise.name, sessionDate, set, 'weight', e.target.value)}
+                                    placeholder="kg"
+                                    className={`min-w-[28px] w-8 sm:min-w-[36px] sm:w-12 px-0.5 sm:px-1 py-0.5 rounded text-center text-[#F8FAFC] text-base sm:text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF2D2D] focus:border-transparent touch-manipulation border ${
+                                      hasSetData ? 'bg-[#FF2D2D]/20 border-[#FF2D2D]/40' : 'bg-[#1A1D24] border-[rgba(255,255,255,0.08)] hover:border-[#FF2D2D]/30'
+                                    }`}
+                                  />
                                 </div>
                               )
                             })}

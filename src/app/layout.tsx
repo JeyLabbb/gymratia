@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { AuthProvider } from "./_components/AuthProvider";
 import { TrainerNotificationsProvider } from "./_components/TrainerNotificationsProvider";
+import { TermsGuard } from "./_components/TermsGuard";
 
 const bebasNeue = localFont({
   src: "../../node_modules/@fontsource/bebas-neue/files/bebas-neue-latin-400-normal.woff2",
@@ -44,9 +45,11 @@ export default function RootLayout({
         className={`${bebasNeue.variable} ${inter.variable} font-body antialiased`}
       >
         <AuthProvider>
-          <TrainerNotificationsProvider>
-            {children}
-          </TrainerNotificationsProvider>
+          <TermsGuard>
+            <TrainerNotificationsProvider>
+              {children}
+            </TrainerNotificationsProvider>
+          </TermsGuard>
         </AuthProvider>
       </body>
     </html>

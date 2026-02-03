@@ -28,6 +28,7 @@ import { useAuth } from './_components/AuthProvider'
 import { LoadingScreen } from './_components/LoadingScreen'
 import { ModeSelectionScreen } from './_components/ModeSelectionScreen'
 import { TrainersPreviewClient } from './_components/TrainersPreviewClient'
+import { AppFooter } from './_components/AppFooter'
 
 // Utility components
 function Container({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -119,18 +120,18 @@ function Hero() {
         <PersonalizedHero />
         <div className="flex flex-wrap gap-6 pt-8">
           <div className="flex flex-col">
-            <span className="text-2xl font-heading font-bold text-[#FF2D2D]">9</span>
-            <span className="text-sm text-[#A7AFBE]">semanas</span>
-            <span className="text-xs text-[#7B8291] mt-1">Plan completo</span>
+            <span className="text-2xl font-heading font-bold text-[#FF2D2D]">Planes</span>
+            <span className="text-sm text-[#A7AFBE]">adaptados</span>
+            <span className="text-xs text-[#7B8291] mt-1">A tu objetivo y tiempo</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-2xl font-heading font-bold text-[#F8FAFC]">1</span>
-            <span className="text-sm text-[#A7AFBE]">coach</span>
-            <span className="text-xs text-[#7B8291] mt-1">Con estilo único</span>
+            <span className="text-2xl font-heading font-bold text-[#F8FAFC]">3</span>
+            <span className="text-sm text-[#A7AFBE]">entrenadores</span>
+            <span className="text-xs text-[#7B8291] mt-1">Con estilos únicos</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-2xl font-heading font-bold text-[#F8FAFC]">PPL</span>
-            <span className="text-xs text-[#7B8291] mt-1">Culturismo + salud</span>
+            <span className="text-2xl font-heading font-bold text-[#F8FAFC]">24/7</span>
+            <span className="text-xs text-[#7B8291] mt-1">Cuándo y donde quieras</span>
           </div>
         </div>
       </Container>
@@ -346,66 +347,6 @@ function TrainerFinalCTA() {
         </Card>
       </Container>
     </section>
-  )
-}
-
-// Footer
-function Footer() {
-  return (
-    <footer className="border-t border-[rgba(255,255,255,0.08)] py-10">
-      <Container>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          <div>
-            <h3 className="font-heading text-lg font-bold mb-4">Producto</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/onboarding/basic" className="text-[#A7AFBE] hover:text-[#FF2D2D] text-sm transition-colors">
-                  Onboarding
-                </Link>
-              </li>
-              <li>
-                <Link href="/trainers" className="text-[#A7AFBE] hover:text-[#FF2D2D] text-sm transition-colors">
-                  Entrenadores
-                </Link>
-              </li>
-              <li>
-                <Link href="/explore" className="text-[#A7AFBE] hover:text-[#FF2D2D] text-sm transition-colors">
-                  Explorar
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-heading text-lg font-bold mb-4">Legal</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="#" className="text-[#A7AFBE] hover:text-[#FF2D2D] text-sm transition-colors">
-                  Privacidad
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-[#A7AFBE] hover:text-[#FF2D2D] text-sm transition-colors">
-                  Términos
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-heading text-lg font-bold mb-4">Contacto</h3>
-            <ul className="space-y-2">
-              <li>
-                <a href="mailto:info@gymratia.com" className="text-[#A7AFBE] hover:text-[#FF2D2D] text-sm transition-colors">
-                  Email
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="pt-8 border-t border-[rgba(255,255,255,0.08)] text-center text-sm text-[#7B8291]">
-          © GymRatIA 2025. All rights reserved.
-        </div>
-      </Container>
-    </footer>
   )
 }
 
@@ -677,7 +618,7 @@ export default function Home() {
               <TrainerWhyChooseUs />
               <TrainerServices />
               <TrainerFinalCTA />
-              <Footer />
+              <AppFooter />
             </>
           ) : (
             // Página principal para ALUMNOS (no logueados)
@@ -688,7 +629,7 @@ export default function Home() {
               <ServicesTiles />
               <Testimonials />
               <FinalCTA />
-              <Footer />
+              <AppFooter />
             </>
           )}
         </>

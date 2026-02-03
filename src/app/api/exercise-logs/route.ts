@@ -6,6 +6,15 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+async function trainerHasAccessToStudent(trainerSlug: string, trainerId: string, studentId: string): Promise<boolean> {
+  const [chatRes, relRes, reqRes] = await Promise.all([
+    supabaseAdmin.from('trainer_chats').select('id').eq('user_id', studentId).eq('trainer_slug', trainerSlug).maybeSingle(),
+    supabaseAdmin.from('trainer_student_relationships').select('id').eq('trainer_id', trainerId).eq('student_id', studentId).eq('status', 'active').maybeSingle(),
+    supabaseAdmin.from('trainer_access_requests').select('id').eq('user_id', studentId).eq('trainer_id', trainerId).eq('status', 'approved').maybeSingle(),
+  ])
+  return !!(chatRes.data || relRes.data || reqRes.data)
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
@@ -15,6 +24,7 @@ export async function GET(req: Request) {
     const date = searchParams.get('date')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const studentId = searchParams.get('studentId') // Coach mode: fetch logs for student
 
     const authHeader = req.headers.get('authorization')
     if (!authHeader) {
@@ -28,17 +38,28 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    let targetUserId = user.id
+    if (studentId) {
+      // Coach mode: verify trainer has access to this student
+      const { data: trainer } = await supabaseAdmin.from('trainers').select('id, slug').eq('user_id', user.id).maybeSingle()
+      if (!trainer || !(await trainerHasAccessToStudent(trainer.slug, trainer.id, studentId))) {
+        return NextResponse.json({ error: 'No tienes permiso para ver los logs de este alumno' }, { status: 403 })
+      }
+      targetUserId = studentId
+    }
+
     let query = supabaseAdmin
       .from('exercise_logs')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', targetUserId)
 
     if (workoutIds) {
       const ids = workoutIds.split(',').map((id: string) => id.trim()).filter(Boolean)
       if (ids.length > 0) {
         query = query.in('workout_id', ids)
       }
-    } else if (workoutId) {
+    }
+    if (!workoutIds && workoutId) {
       query = query.eq('workout_id', workoutId)
     }
 
@@ -139,13 +160,18 @@ export async function POST(req: Request) {
         }
       }
       const updatedSets = merged
-      
+
+      const updatePayload: Record<string, unknown> = {
+        sets: updatedSets,
+        notes: notes || existingLog.notes,
+        updated_at: new Date().toISOString(),
+        updated_by_role: 'student',
+        updated_by_user_id: user.id
+      }
+
       const { data: log, error } = await supabaseAdmin
         .from('exercise_logs')
-        .update({
-          sets: updatedSets,
-          notes: notes || existingLog.notes
-        })
+        .update(updatePayload)
         .eq('id', existingLog.id)
         .select()
         .single()
@@ -164,6 +190,8 @@ export async function POST(req: Request) {
       exercise_name,
       date,
       sets,
+      updated_by_role: 'student',
+      updated_by_user_id: user.id
     }
 
     if (notes) log.notes = notes
@@ -208,7 +236,11 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const updates: any = {}
+    const updates: any = {
+      updated_at: new Date().toISOString(),
+      updated_by_role: 'student',
+      updated_by_user_id: user.id
+    }
     if (sets !== undefined) updates.sets = sets
     if (notes !== undefined) updates.notes = notes
 

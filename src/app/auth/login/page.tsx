@@ -11,6 +11,7 @@ function LoginContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { user, loading: authLoading, signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth()
@@ -22,6 +23,16 @@ function LoginContent() {
     const urlError = searchParams.get('error')
     if (urlError) {
       setError(decodeURIComponent(urlError))
+    }
+  }, [searchParams])
+
+  // Marcar modo desde URL (ej: ?mode=trainer cuando viene de trainers/register)
+  useEffect(() => {
+    const mode = searchParams.get('mode')
+    if (mode === 'trainer' && typeof window !== 'undefined') {
+      localStorage.setItem('user_mode', 'trainer')
+    } else if (mode === 'student' && typeof window !== 'undefined') {
+      localStorage.setItem('user_mode', 'student')
     }
   }, [searchParams])
 
@@ -74,15 +85,30 @@ function LoginContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (isSignUp && !termsAccepted) {
+      setError('Debes aceptar los Términos y Condiciones para crear una cuenta.')
+      return
+    }
     setLoading(true)
 
     try {
       if (isSignUp) {
         try {
           await signUpWithEmail(email, password, fullName)
-          // Signup exitoso, auto-login
+          // Signup exitoso. Supabase puede requerir confirmación de email.
           await new Promise(resolve => setTimeout(resolve, 500))
-          await signInWithEmail(email, password)
+          try {
+            await signInWithEmail(email, password)
+          } catch (signInErr: any) {
+            // Si falla por "Email not confirmed", el usuario debe revisar su correo
+            if (signInErr.message?.includes('Email not confirmed') ||
+                signInErr.message?.includes('email_not_confirmed')) {
+              setError('Revisa tu email y haz clic en el enlace para confirmar tu cuenta. Luego podrás iniciar sesión.')
+              setLoading(false)
+              return
+            }
+            throw signInErr
+          }
         } catch (signUpError: any) {
           // Manejar errores específicos de signup
           if (signUpError.message?.includes('already registered') || 
@@ -93,18 +119,25 @@ function LoginContent() {
             setLoading(false)
             return
           }
+          if (signUpError.message?.includes('signup_disabled') || signUpError.message?.includes('Signup disabled')) {
+            setError('El registro por email está desactivado. Usa Google para crear una cuenta.')
+            setLoading(false)
+            return
+          }
           throw signUpError
         }
       } else {
         try {
           await signInWithEmail(email, password)
         } catch (signInError: any) {
-          // Manejar errores específicos de login
-          if (signInError.message?.includes('Invalid login credentials') || 
-              signInError.message?.includes('not found') ||
-              signInError.message?.includes('Invalid')) {
-            // Mensaje genérico pero claro
+          const msg = signInError.message || ''
+          if (msg.includes('Invalid login credentials') || msg.includes('not found') || msg.includes('Invalid')) {
             setError('Email o contraseña incorrectos. Si no tienes cuenta, crea una nueva. Si usaste Google para registrarte, inicia sesión con Google.')
+            setLoading(false)
+            return
+          }
+          if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed')) {
+            setError('Confirma tu cuenta: revisa tu email y haz clic en el enlace antes de iniciar sesión.')
             setLoading(false)
             return
           }
@@ -247,6 +280,23 @@ function LoginContent() {
                 placeholder="••••••••"
               />
             </div>
+
+            {isSignUp && (
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-1 rounded border-[rgba(255,255,255,0.2)] bg-[#1A1D24] text-[#FF2D2D] focus:ring-[#FF2D2D]"
+                />
+                <span className="text-sm text-[#A7AFBE] group-hover:text-[#F8FAFC] transition-colors">
+                  He leído y acepto los{' '}
+                  <Link href="/terms" target="_blank" className="text-[#FF2D2D] hover:underline">
+                    Términos y Condiciones
+                  </Link>
+                </span>
+              </label>
+            )}
 
             <button
               type="submit"

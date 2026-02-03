@@ -743,7 +743,7 @@ function TrainerRegisterContent() {
 
           <div className="mt-6 text-center text-sm text-[#A7AFBE]">
             ¿Ya tienes cuenta?{' '}
-            <Link href="/auth/login" className="text-[#FF2D2D] hover:underline">
+            <Link href="/auth/login?mode=trainer" className="text-[#FF2D2D] hover:underline">
               Inicia sesión
             </Link>
           </div>

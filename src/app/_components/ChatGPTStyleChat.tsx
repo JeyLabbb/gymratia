@@ -5,6 +5,7 @@ import { useAuth } from './AuthProvider'
 import { personas, getTrainerBySlug } from '@/lib/personas'
 import { supabase } from '@/lib/supabase'
 import { Send, Loader2, Star } from 'lucide-react'
+import { ChatInputBar } from './ChatInputBar'
 import { cn } from '@/lib/utils'
 import { ChatContentPanel } from './ChatContentPanel'
 import { useSearchParams } from 'next/navigation'
@@ -17,6 +18,7 @@ type Message = {
   role: 'user' | 'assistant'
   content: string
   created_at: string
+  image_url?: string | string[] | null
   permissionRequest?: {
     requestId: string
     message: string
@@ -412,19 +414,22 @@ export function ChatGPTStyleChat({ trainerSlug, chatId: initialChatId }: ChatGPT
     }
   }
 
-  const sendMessage = async () => {
-    if (!inputValue.trim() || sending || !user) return
+  const sendMessage = async (opts?: { imageUrls?: string[]; message?: string }) => {
+    const text = opts?.message ?? inputValue.trim()
+    const imageUrls = opts?.imageUrls ?? []
+    if ((!text || !text.trim()) && imageUrls.length === 0) return
+    if (sending || !user) return
 
-    const userMessage = inputValue.trim()
+    const userMessage = text.trim() || '(imagen adjunta)'
     setInputValue('')
     setSending(true)
 
-    // Add user message optimistically
     const tempUserMessage: Message = {
       id: `temp-${Date.now()}`,
       role: 'user',
       content: userMessage,
       created_at: new Date().toISOString(),
+      image_url: imageUrls.length === 1 ? imageUrls[0] : imageUrls.length > 1 ? imageUrls : undefined,
     }
     setMessages((prev) => [...prev, tempUserMessage])
 
@@ -444,6 +449,7 @@ export function ChatGPTStyleChat({ trainerSlug, chatId: initialChatId }: ChatGPT
           chatId: chatId || undefined,
           message: userMessage,
           trainerSlug,
+          ...(imageUrls.length > 0 && { imageUrls }),
         }),
       })
 
@@ -927,6 +933,19 @@ export function ChatGPTStyleChat({ trainerSlug, chatId: initialChatId }: ChatGPT
                         : 'bg-[#14161B] border border-[rgba(255,255,255,0.08)] text-[#F8FAFC]'
                     )}
                   >
+                    {message.image_url && (() => {
+                      const raw = message.image_url
+                      const urls: string[] = Array.isArray(raw) ? raw : typeof raw === 'string' ? (() => { try { const p = JSON.parse(raw); return Array.isArray(p) ? p : [raw]; } catch { return [raw]; } })() : []
+                      return urls.length > 0 ? (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {urls.map((url, i) => (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-[10px] overflow-hidden max-w-[200px] sm:max-w-[280px]">
+                              <SafeImage src={url} alt="Imagen adjunta" className="w-full h-auto object-cover" />
+                            </a>
+                          ))}
+                        </div>
+                      ) : null
+                    })()}
                     <div className="text-sm leading-relaxed whitespace-pre-wrap">
                       <MarkdownRenderer content={message.content} />
                     </div>
@@ -1090,35 +1109,14 @@ export function ChatGPTStyleChat({ trainerSlug, chatId: initialChatId }: ChatGPT
       {/* Input Area - sticky arriba del bottom nav */}
       <div className="sticky bottom-0 flex-shrink-0 border-t border-[rgba(255,255,255,0.08)] bg-[#14161B] px-4 py-3 sm:py-4">
         <div className="max-w-3xl mx-auto">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              sendMessage()
-            }}
-            className="relative"
-          >
-            <textarea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={`Escribe un mensaje a ${trainer.name}...`}
-              rows={1}
-              className="w-full rounded-[20px] bg-[#1A1D24] border border-[rgba(255,255,255,0.08)] px-4 py-3 pr-12 text-[#F8FAFC] placeholder:text-[#7B8291] focus:outline-none focus:ring-2 focus:ring-[#FF2D2D] focus:border-transparent resize-none max-h-32 overflow-y-auto [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
-              disabled={sending}
-            />
-            <button
-              type="submit"
-              disabled={!inputValue.trim() || sending}
-              className="absolute right-1.5 sm:right-2 bottom-1.5 sm:bottom-2 p-1.5 sm:p-2 rounded-full bg-[#FF2D2D] text-[#F8FAFC] hover:bg-[#FF3D3D] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-              {sending ? (
-                <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
-              ) : (
-                <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              )}
-            </button>
-          </form>
+          <ChatInputBar
+            placeholder={`Escribe un mensaje a ${trainer.name}...`}
+            value={inputValue}
+            onChange={setInputValue}
+            onSend={(opts) => sendMessage(opts)}
+            disabled={!user}
+            sending={sending}
+          />
           <p className="text-xs text-[#7B8291] mt-2 text-center">
             {trainer.name} puede cometer errores. Verifica información importante.
           </p>

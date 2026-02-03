@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { ArrowRight, Sparkles, Target, Search, Star, Users, TrendingUp, Flame } from 'lucide-react'
 import { TrainerChatLink } from '@/app/_components/TrainerChatLink'
 import SafeImage from '@/app/_components/SafeImage'
+import { AppFooter } from '@/app/_components/AppFooter'
 
 type TrainerFromDB = {
   slug: string
@@ -489,6 +490,7 @@ export default function Trainers() {
           </p>
         </div>
       </div>
+      <AppFooter />
     </div>
   )
 }
