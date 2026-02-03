@@ -14,6 +14,8 @@ type User = {
   created_at: string
   trainer_slugs: string[]
   hasTrainer: boolean
+  hasProfile?: boolean
+  onboardingComplete?: boolean
 }
 
 export default function PortalUsersPage() {
@@ -74,18 +76,19 @@ export default function PortalUsersPage() {
                 <th className="text-left px-4 py-3 text-[#A7AFBE] font-medium">Nombre</th>
                 <th className="text-left px-4 py-3 text-[#A7AFBE] font-medium">Fecha alta</th>
                 <th className="text-left px-4 py-3 text-[#A7AFBE] font-medium">Entrenador</th>
+                <th className="text-left px-4 py-3 text-[#A7AFBE] font-medium">Onboarding</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-[#7B8291]">
+                  <td colSpan={5} className="px-4 py-8 text-center text-[#7B8291]">
                     Cargando...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-[#7B8291]">
+                  <td colSpan={5} className="px-4 py-8 text-center text-[#7B8291]">
                     No hay usuarios
                   </td>
                 </tr>
@@ -102,6 +105,9 @@ export default function PortalUsersPage() {
                     </td>
                     <td className="px-4 py-3 text-[#A7AFBE]">
                       {u.hasTrainer ? u.trainer_slugs.join(', ') : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-[#A7AFBE]">
+                      {u.onboardingComplete ? '✓' : u.hasProfile ? 'Parcial' : '—'}
                     </td>
                   </tr>
                 ))

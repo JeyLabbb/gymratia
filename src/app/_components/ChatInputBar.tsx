@@ -77,6 +77,7 @@ export function ChatInputBar({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const mimeTypeRef = useRef<string>('audio/webm')
 
   useEffect(() => {
     return () => {
@@ -98,7 +99,9 @@ export function ChatInputBar({
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mr = new MediaRecorder(stream)
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/webm'
+      mimeTypeRef.current = mimeType
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       mediaRecorderRef.current = mr
       chunksRef.current = []
       mr.ondataavailable = (e) => {
@@ -150,9 +153,11 @@ export function ChatInputBar({
     setAudioState('uploading')
     setTranscriptionError('')
     try {
-      const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+      const mime = mimeTypeRef.current || 'audio/webm'
+      const ext = mime.includes('mp4') ? 'm4a' : 'webm'
+      const blob = new Blob(chunksRef.current, { type: mime })
       const formData = new FormData()
-      formData.append('audio', blob)
+      formData.append('audio', blob, `audio.${ext}`)
       const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession()
       if (!session) throw new Error('No session')
       const res = await fetch('/api/transcribe', {

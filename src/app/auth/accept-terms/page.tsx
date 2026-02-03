@@ -53,8 +53,10 @@ export default function AcceptTermsPage() {
       }
       // Redirigir al onboarding correspondiente según el modo (alumno o entrenador)
       const mode = typeof window !== 'undefined' ? (localStorage.getItem('user_mode') || 'student') : 'student'
-      const { data: profile } = await supabase.from('user_profiles').select('id').eq('user_id', user.id).maybeSingle()
+      const { data: profile } = await supabase.from('user_profiles').select('id, height_cm, goal').eq('user_id', user.id).maybeSingle()
       const { data: trainer } = await supabase.from('trainers').select('id').eq('user_id', user.id).maybeSingle()
+
+      const profileComplete = profile && profile.height_cm != null && profile.goal != null && String(profile.goal).trim() !== ''
 
       if (mode === 'trainer') {
         if (trainer) {
@@ -63,7 +65,7 @@ export default function AcceptTermsPage() {
           router.push('/trainers/register?step=2')
         }
       } else {
-        if (!profile) {
+        if (!profile || !profileComplete) {
           router.push('/onboarding/basic')
         } else {
           router.push('/trainers')

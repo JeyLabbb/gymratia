@@ -5,7 +5,12 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from './AuthProvider'
 import { supabase } from '@/lib/supabase'
 
-const ALLOWED_PATHS = ['/auth/login', '/auth/callback', '/auth/accept-terms', '/terms', '/auth/mode-select']
+const ALLOWED_PATHS = ['/auth/login', '/auth/callback', '/auth/accept-terms', '/terms', '/auth/mode-select', '/onboarding', '/privacy']
+
+function isProfileComplete(profile: { height_cm?: number | null; goal?: string | null } | null): boolean {
+  if (!profile) return false
+  return profile.height_cm != null && profile.goal != null && String(profile.goal).trim() !== ''
+}
 
 export function TermsGuard({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth()
@@ -20,7 +25,7 @@ export function TermsGuard({ children }: { children: React.ReactNode }) {
     let cancelled = false
     setChecking(true)
 
-    const checkTerms = async () => {
+    const checkTermsAndOnboarding = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         if (!session || cancelled) return
@@ -36,6 +41,20 @@ export function TermsGuard({ children }: { children: React.ReactNode }) {
 
         if (!cancelled && !hasTerms) {
           router.replace('/auth/accept-terms')
+          return
+        }
+
+        // Si tiene términos pero perfil incompleto: redirigir según modo (entrenador vs alumno)
+        const mode = typeof window !== 'undefined' ? localStorage.getItem('user_mode') || 'student' : 'student'
+        const { data: trainer } = await supabase.from('trainers').select('id').eq('user_id', session.user.id).maybeSingle()
+        const hasTrainerProfile = !!trainer?.id
+
+        if (!cancelled && hasTerms && !isProfileComplete(profile)) {
+          if (mode === 'trainer') {
+            router.replace(hasTrainerProfile ? '/trainers/dashboard' : '/trainers/register?step=2')
+          } else {
+            router.replace('/onboarding/basic')
+          }
         }
       } catch {
         // Ignore errors, don't block
@@ -44,7 +63,7 @@ export function TermsGuard({ children }: { children: React.ReactNode }) {
       }
     }
 
-    checkTerms()
+    checkTermsAndOnboarding()
     return () => {
       cancelled = true
     }
