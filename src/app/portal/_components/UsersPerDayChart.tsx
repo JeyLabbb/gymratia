@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 type Point = { date: string; count: number }
+type PointWithCoords = { x: number; y: number; point: Point }
 
 type UsersPerDayChartProps = {
   data: Point[]
@@ -126,7 +127,7 @@ export function UsersPerDayChart({ data, title = 'Usuarios por día', cumulative
       const rect = canvas.getBoundingClientRect()
       const mx = e.clientX - rect.left
       const my = e.clientY - rect.top
-      let closest: typeof points[0] | null = null
+      let closest: PointWithCoords | null = null
       let dist = 24
       points.forEach((p) => {
         const d = Math.hypot(mx - p.x, my - p.y)
@@ -135,8 +136,9 @@ export function UsersPerDayChart({ data, title = 'Usuarios por día', cumulative
           closest = p
         }
       })
-      if (closest) {
-        setHovered({ point: closest.point, x: closest.x, y: closest.y })
+      if (closest !== null) {
+        const c = closest as PointWithCoords
+        setHovered({ point: c.point, x: c.x, y: c.y })
         setTooltipPos({ x: e.clientX, y: e.clientY })
       } else {
         setHovered(null)
